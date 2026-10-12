@@ -9,6 +9,8 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const MODULE_FILES = [
   'js/config.js',
+  'js/i18n.js',
+  'js/i18n/en.js',
   'js/utils.js',
   'js/moon.js',
   'js/data/species-data.js',
