@@ -1,0 +1,11 @@
+/* Generado por tools/build-tide-data.mjs. No editar a mano.
+ * Constantes armónicas de estaciones de marea: base de datos @neaps/tide-database (código MIT).
+ * Cada estación indica su fuente y su licencia (CC BY 4.0, CC BY-NC 4.0 o dominio público).
+ * Ver el README, apartado "Atribución y licencias".
+ */
+(function (root) {
+  'use strict';
+  const PescaApp = (root.PescaApp = root.PescaApp || {});
+  PescaApp.tideTiles = PescaApp.tideTiles || {};
+  PescaApp.tideTiles["-1_7"] = [{"id":"noaa/2431000","name":"Diego Garcia","lat":-7.29,"lon":72.3933,"country":"IO","source":"US National Oceanic and Atmospheric Administration","sourceUrl":"https://tidesandcurrents.noaa.gov/stationhome.html?id=2431000","license":"public domain","datum":{"LAT":9.666,"MSL":10.665},"constituents":[["M2",0.494,263.4],["S2",0.284,293.9],["N2",0.089,260.1],["K1",0.035,64.9],["M4",0.002,187.1],["O1",0.041,71.3],["MK3",0.003,144.2],["NU2",0.017,263.3],["MU2",0.016,272.8],["2N2",0.012,255.2],["OO1",0.002,109],["LAM2",0.006,246.4],["S1",0.003,223.6],["M1",0.002,103.3],["J1",0.004,76.9],["MM",0.016,354.9],["SSA",0.009,302.5],["SA",0.018,100.2],["MSF",0.005,255.4],["MF",0.017,8.1],["RHO",0.002,25.4],["Q1",0.01,40.6],["T2",0.013,290.7],["R2",0.002,341.5],["P1",0.012,47.1],["2SM2",0.003,167.7],["M3",0.004,288.8],["L2",0.016,256.2],["K2",0.079,288]]},{"id":"ticon/gan-109-mdv-uhslc_fd","name":"Gan","lat":-0.687,"lon":73.152,"country":"MV","source":"TICON-4","sourceUrl":"https://www.seanoe.org/data/00980/109129/","license":"cc-by-4.0","datum":{"LAT":0.925,"MSL":1.643},"constituents":[["M2",0.3,252.39],["N2",0.0489,248.26],["S2",0.1807,286.36],["K2",0.0513,282.64],["2N2",0.0063,247.83],["S1",0.0036,183.8],["K1",0.0906,359.13],["P1",0.0264,0.16],["O1",0.0527,14.51],["Q1",0.0139,16.33],["M1",0.0035,265.37],["MM",0.0081,6.96],["MF",0.017,6.84],["SA",0.0351,102.81],["SSA",0.0101,7.24],["T2",0.0098,287.16],["J1",0.0056,10.51],["L2",0.0116,255.76],["R2",0.0024,298.14],["2Q1",0.0027,359.14],["EP2",0.0026,251.81],["M3",0.0043,282.83],["MU2",0.0093,268.53],["MTM",0.0035,16.49],["NU2",0.0096,245.83],["LAMBDA2",0.0044,244.5],["OO1",0.004,35.08],["T3",0.0021,189.33],["RHO1",0.0027,18.93],["SGM",0.003,185.55],["2SM2",0.0026,170.98]]}];
+})(typeof window !== 'undefined' ? window : globalThis);

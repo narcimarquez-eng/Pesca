@@ -24,6 +24,8 @@
   const CLOCK_INTERVAL_MS = 60 * 1000;
   const CHART_PAST_MS = 3 * 60 * 60 * 1000;
   const CHART_FUTURE_MS = 21 * 60 * 60 * 1000;
+  /** A partir de esta distancia a la estación de marea se avisa de que la predicción puede desviarse. */
+  const STATION_DISTANCE_WARNING_KM = 20;
 
   const state = {
     place: null,
@@ -53,6 +55,7 @@
       settingsDialog: byId('settings-dialog'),
       settingsClose: byId('settings-close'),
       settingsTheme: byId('settings-theme'),
+      settingsTideSource: byId('settings-tide-source'),
       settingsTidesForm: byId('settings-tides-form'),
       settingsTidesKey: byId('settings-tides-key'),
       settingsTidesStatus: byId('settings-tides-status'),
@@ -132,6 +135,11 @@
 
   function renderAlert(message, tone = 'warning') {
     return `<p class="alert alert-${tone}">${utils.escapeHtml(message)}</p>`;
+  }
+
+  /** Atajo de formato con los valores por defecto de la app. */
+  function fmt(value, decimals = 0, unit = '') {
+    return utils.formatNumber(value, decimals, unit);
   }
 
   /** Número con signo (+/−) para variaciones. */
@@ -344,7 +352,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Datos en vivo: clima, agua, mareas, índice y luna
+  // Datos en vivo: clima, mareas, índice y luna
   // ---------------------------------------------------------------------------
 
   async function refreshLiveData() {
@@ -372,18 +380,13 @@
     renderWeatherCard();
   }
 
+  /** Mareas en vivo con la fuente elegida (predicción armónica por defecto, sin registro). */
   async function loadTides(place) {
     const requestId = ++tidesRequestId;
     state.tidesError = null;
-    const apiKey = tides.getApiKey();
-    if (!apiKey) {
-      state.tides = null;
-      renderTidesCard();
-      return;
-    }
     renderTidesCard();
     try {
-      const tideData = await tides.getLiveTides(place.lat, place.lon, apiKey);
+      const tideData = await tides.getLiveTides(place.lat, place.lon, tides.getApiKey(), new Date());
       if (requestId !== tidesRequestId) return;
       state.tides = tideData;
     } catch (error) {
@@ -450,14 +453,8 @@
       </dl>`;
   }
 
-  /** Atajo de formato con los valores por defecto de la app. */
-  function fmt(value, decimals = 0, unit = '') {
-    return utils.formatNumber(value, decimals, unit);
-  }
-
   function renderMoonCard() {
-    const now = new Date();
-    const phase = moon.getMoonPhase(now);
+    const phase = moon.getMoonPhase(new Date());
     dom.moonBody.innerHTML = `
       <div class="moon-hero">
         <span class="moon-icon" aria-hidden="true">${phase.icon}</span>
@@ -519,6 +516,7 @@
       <p class="fineprint">Heurística orientativa: combina presión, luna, viento y marea. No garantiza capturas.</p>`;
   }
 
+  /** Tarjeta de mareas: estación usada, resumen, gráfica y tabla de extremos. */
   function renderTidesCard() {
     if (!state.place) {
       dom.tidesBody.innerHTML = '<p class="muted">Define una ubicación para ver las mareas.</p>';
@@ -535,26 +533,21 @@
         <span>${utils.escapeHtml(tides.describeCoefficient(coefficient))}</span>
       </div>`;
 
-    const apiKey = tides.getApiKey();
-    if (!apiKey) {
-      dom.tidesBody.innerHTML = `
-        <p>Para ver alturas, pleamares y bajamares necesitas una clave gratuita de WorldTides (regístrate en worldtides.info).</p>
-        <button type="button" class="btn btn-primary" data-action="open-settings">Configurar clave</button>
-        ${coefficientHtml}`;
-      return;
-    }
-
     if (state.tidesError) {
-      dom.tidesBody.innerHTML = `${renderAlert(state.tidesError, 'warning')}${coefficientHtml}`;
+      const needsKey = tides.getSource() === tides.SOURCE_WORLDTIDES && !tides.getApiKey();
+      dom.tidesBody.innerHTML = `${renderAlert(state.tidesError, 'warning')}${
+        needsKey ? '<button type="button" class="btn btn-primary" data-action="open-settings">Configurar clave</button>' : ''
+      }${coefficientHtml}`;
       return;
     }
 
     if (!state.tides) {
-      dom.tidesBody.innerHTML = `<p class="muted loading">Consultando mareas…</p>${coefficientHtml}`;
+      dom.tidesBody.innerHTML = `<p class="muted loading">Calculando mareas…</p>${coefficientHtml}`;
       return;
     }
 
     const summary = tides.summarize(state.tides, nowMs);
+    const station = state.tides.station;
     const chartStart = nowMs - CHART_PAST_MS;
     const chartEnd = nowMs + CHART_FUTURE_MS;
     const geometry = tides.buildChartGeometry(state.tides, {
@@ -578,7 +571,31 @@
     const nextHighText = summary && summary.nextHigh ? formatDayAndClock(summary.nextHigh.ts) : 'Sin dato';
     const nextLowText = summary && summary.nextLow ? formatDayAndClock(summary.nextLow.ts) : 'Sin dato';
 
+    const stationHtml = station
+      ? `<div class="station-line">
+          <p><strong>Estación:</strong> ${utils.escapeHtml(station.name)} (${fmt(station.distanceKm, 1, 'km')}) · ${utils.escapeHtml(station.source)} · ${utils.escapeHtml(station.licenseLabel)}</p>
+          <p class="fineprint">${utils.escapeHtml(station.referenceLabel)}.${
+            station.sourceUrl
+              ? ` <a href="${utils.escapeHtml(station.sourceUrl)}" target="_blank" rel="noopener">Ver la fuente</a>`
+              : ''
+          }</p>
+        </div>`
+      : '';
+    const distanceWarning =
+      station && station.distanceKm > STATION_DISTANCE_WARNING_KM
+        ? renderAlert(
+            `La estación está a ${fmt(station.distanceKm, 1, 'km')}. En la costa abierta, estuarios o calas la hora y la altura pueden desviarse.`,
+            'warning'
+          )
+        : '';
+    const footnote =
+      state.tides.method === tides.SOURCE_HARMONIC
+        ? 'Predicción armónica: no incluye viento, presión ni oleaje, y no sustituye a las tablas oficiales. No la uses para navegar.'
+        : 'Fuente de alturas: WorldTides. Consulta las tablas oficiales para navegar o pescar en zonas peligrosas.';
+
     dom.tidesBody.innerHTML = `
+      ${stationHtml}
+      ${distanceWarning}
       <div class="tide-summary">
         <div class="tide-stat"><span class="muted">Altura ahora</span><strong>${currentText}</strong></div>
         <div class="tide-stat"><span class="muted">Próxima pleamar</span><strong>${utils.escapeHtml(nextHighText)}</strong></div>
@@ -594,7 +611,7 @@
             : '<p class="muted">No hay extremos previstos en las próximas 24 horas.</p>'
         }
       </details>
-      <p class="fineprint">Alturas: WorldTides, referidas al datum del servicio. El coeficiente es una estimación por fase lunar, no el oficial. Consulta las tablas oficiales para navegar o pescar en zonas peligrosas.</p>`;
+      <p class="fineprint">${utils.escapeHtml(footnote)} El coeficiente es una estimación por fase lunar, no el oficial.</p>`;
   }
 
   /** SVG de la gráfica de mareas. Todos los valores son numéricos o texto escapado. */
@@ -864,7 +881,6 @@
     const place = state.place;
     const now = new Date();
     const isPast = dateTime.getTime() < now.getTime() - PAST_CATCH_THRESHOLD_MS;
-    const apiKey = tides.getApiKey();
 
     try {
       let weatherData;
@@ -874,22 +890,18 @@
       if (isPast) {
         weatherData = await weather.getHistoricalConditions(place.lat, place.lon, dateTimeText, now);
         sourceLabel = weatherData.source;
-        if (apiKey) {
-          tideWindow = await tides.getHistoricalTides(place.lat, place.lon, apiKey, dateTime);
-        }
+        tideWindow = await tides.getHistoricalTides(place.lat, place.lon, tides.getApiKey(), dateTime);
       } else {
         weatherData = state.forecast;
         sourceLabel = 'Condiciones actuales';
-        if (apiKey && state.tides) {
-          tideWindow = state.tides;
-        }
+        tideWindow = state.tides;
       }
 
       const moonPhase = moon.getMoonPhase(dateTime);
       const coefficient = tides.estimateCoefficient(dateTime);
       const tideSnapshot = tideWindow
         ? tides.buildTideSnapshot(tideWindow, dateTime.getTime(), coefficient)
-        : { heightM: null, hoursFromExtreme: null, nextHigh: null, nextLow: null, coefficient };
+        : { heightM: null, hoursFromExtreme: null, nextHigh: null, nextLow: null, coefficient, station: null };
 
       const tideSummary = tideWindow ? tides.summarize(tideWindow, dateTime.getTime()) : null;
       const activityResult = activity.computeActivityIndex({
@@ -1039,7 +1051,7 @@
       ? `Aire ${fmt(conditions.weather.airTemperatureC, 1, '°C')} · agua ${fmt(conditions.weather.waterTemperatureC, 1, '°C')} · viento ${fmt(conditions.weather.windSpeedKmh, 0, 'km/h')} · presión ${fmt(conditions.weather.pressureHpa, 0, 'hPa')}`
       : 'Sin datos meteorológicos';
     const tideLine = conditions && conditions.tide && conditions.tide.heightM !== null
-      ? `Marea ${fmt(conditions.tide.heightM, 2, 'm')}`
+      ? `Marea ${fmt(conditions.tide.heightM, 2, 'm')}${conditions.tide.station ? ` (estación ${conditions.tide.station.name})` : ''}`
       : conditions && conditions.tide
         ? `Coeficiente aprox. ${conditions.tide.coefficient ?? '—'}`
         : 'Sin datos de marea';
@@ -1101,10 +1113,18 @@
   // ---------------------------------------------------------------------------
 
   function openSettings() {
+    dom.settingsTideSource.value = tides.getSource();
     dom.settingsTidesKey.value = utils.storage.read('worldTidesKey', '') || '';
     setStatus(dom.settingsTidesStatus, '', 'info');
     applyTheme(currentTheme());
     openDialog(dom.settingsDialog);
+  }
+
+  function saveTideSourceFromSettings(event) {
+    tides.saveSource(event.target.value);
+    if (state.place) {
+      refreshLiveData();
+    }
   }
 
   function saveTidesKeyFromSettings(event) {
@@ -1113,7 +1133,7 @@
     tides.saveApiKey(key);
     setStatus(
       dom.settingsTidesStatus,
-      key ? 'Clave guardada en este navegador.' : 'Clave eliminada. Las mareas dejarán de mostrarse.',
+      key ? 'Clave guardada en este navegador.' : 'Clave eliminada.',
       'ok'
     );
     if (state.place) {
@@ -1139,6 +1159,7 @@
       utils.storage.write(THEME_KEY, event.target.value);
       applyTheme(event.target.value);
     });
+    dom.settingsTideSource.addEventListener('change', saveTideSourceFromSettings);
     dom.settingsTidesForm.addEventListener('submit', saveTidesKeyFromSettings);
     dom.settingsClearData.addEventListener('click', clearAllData);
 

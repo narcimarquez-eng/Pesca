@@ -1,0 +1,11 @@
+/* Generado por tools/build-tide-data.mjs. No editar a mano.
+ * Constantes armónicas de estaciones de marea: base de datos @neaps/tide-database (código MIT).
+ * Cada estación indica su fuente y su licencia (CC BY 4.0, CC BY-NC 4.0 o dominio público).
+ * Ver el README, apartado "Atribución y licencias".
+ */
+(function (root) {
+  'use strict';
+  const PescaApp = (root.PescaApp = root.PescaApp || {});
+  PescaApp.tideTiles = PescaApp.tideTiles || {};
+  PescaApp.tideTiles["-2_9"] = [{"id":"ticon/cocos-171-aus-uhslc_fd","name":"Cocos","lat":-12.117,"lon":96.9,"country":"AU","source":"TICON-4","sourceUrl":"https://www.seanoe.org/data/00980/109129/","license":"cc-by-4.0","datum":{"LAT":0.255,"MSL":0.919},"constituents":[["M2",0.3078,311.35],["N2",0.0702,297.77],["S2",0.1133,348.24],["K2",0.0312,345.6],["2N2",0.0104,274.31],["S1",0.0111,300.15],["K1",0.1479,154.66],["P1",0.0451,152.22],["O1",0.0893,145.43],["Q1",0.0195,135.24],["M1",0.0059,51.69],["M4",0.0021,327.72],["MM",0.0083,5.01],["MF",0.0136,10.02],["SA",0.1052,194.05],["SSA",0.0069,253.5],["T2",0.0056,344.79],["J1",0.0087,168.86],["L2",0.0088,319.28],["2Q1",0.0028,114.29],["EP2",0.0032,286.29],["MU2",0.0114,301.6],["MTM",0.0027,5.5],["NU2",0.0135,298.04],["LAMBDA2",0.0029,302.72],["OO1",0.0066,194.55],["RHO1",0.0036,138.34],["SGM",0.0031,298.21],["3N2",0.0022,130.06]]},{"id":"ticon/home_island-46280-aus-bom","name":"Home Island","lat":-12.1167,"lon":96.8919,"country":"AU","source":"TICON-4","sourceUrl":"https://www.seanoe.org/data/00980/109129/","license":"cc-by-4.0","datum":{"LAT":0.248,"MSL":0.91},"constituents":[["M2",0.3078,311.38],["N2",0.0702,297.83],["S2",0.1132,348.2],["K2",0.0312,345.68],["2N2",0.0104,273.89],["S1",0.011,299.7],["K1",0.1478,154.62],["P1",0.0451,152.18],["O1",0.0893,145.43],["Q1",0.0194,135],["M1",0.0057,53.84],["M4",0.0021,328.17],["MM",0.0084,3.29],["MF",0.0135,9.67],["SA",0.1048,195.03],["SSA",0.0052,250.33],["T2",0.0056,344.65],["J1",0.0086,169.39],["L2",0.0087,319.3],["2Q1",0.0027,113.62],["EP2",0.0032,286.02],["MU2",0.0114,301.77],["MTM",0.0026,6.93],["NU2",0.0135,298.08],["LAMBDA2",0.0028,303.08],["OO1",0.0063,194.19],["RHO1",0.0036,138.78],["SGM",0.0031,298.15],["3N2",0.0022,129.59]]}];
+})(typeof window !== 'undefined' ? window : globalThis);

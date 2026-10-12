@@ -5,9 +5,16 @@
   "description": "PescaApp: asistente de pesca con clima, mareas, fase lunar, especies de la zona y registro de capturas.",
   "scripts": {
     "test": "node --test",
-    "start": "python3 -m http.server 8080"
+    "start": "python3 -m http.server 8080",
+    "build:vendor": "node tools/build-vendor.mjs",
+    "build:tides": "node tools/build-tide-data.mjs"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "@neaps/tide-database": "0.10.20260924",
+    "@neaps/tide-predictor": "0.11.0",
+    "esbuild": "0.28.2"
   }
 }

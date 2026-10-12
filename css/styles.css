@@ -708,6 +708,23 @@ textarea {
   margin-top: 8px;
 }
 
+.station-line {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--sea-100);
+  font-size: 0.92rem;
+}
+
+.station-line p + p {
+  margin-top: 2px;
+}
+
+.station-line a {
+  color: var(--sea-700);
+  font-weight: 600;
+}
+
 .extremes summary {
   cursor: pointer;
   font-weight: 600;

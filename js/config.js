@@ -65,6 +65,17 @@
      */
     maxZoneDistanceKm: 60,
 
+    /**
+     * Mareas. stationMaxDistanceKm: distancia máxima a una estación de marea para
+     * predecir con sus constantes armónicas. tileSizeDeg debe coincidir con el valor
+     * de tools/build-tide-data.mjs; tileFolder es la carpeta de las teselas generadas.
+     */
+    tides: Object.freeze({
+      stationMaxDistanceKm: 60,
+      tileSizeDeg: 10,
+      tileFolder: 'js/data/tides/',
+    }),
+
     /** Ajustes de las fotos de las capturas (se guardan en localStorage en base64). */
     photo: Object.freeze({
       maxSidePx: 800,

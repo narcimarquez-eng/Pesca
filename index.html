@@ -163,7 +163,7 @@
 
   <footer class="app-footer">
     <p class="legal"><strong>Aviso legal:</strong> PescaApp es una herramienta orientativa y no sustituye a la normativa oficial. Antes de pescar, consulta la normativa vigente de tu comunidad autónoma (tallas mínimas, cupos, vedas y zonas protegidas). Las mareas, el clima, la fase lunar y el índice de actividad son estimaciones.</p>
-    <p class="fineprint">Datos: Open-Meteo (pronóstico, marino e histórico), OpenStreetMap / Nominatim (© colaboradores de OpenStreetMap), WorldTides (con clave propia) y referencias de FishBase y FAO. Ver la lista completa en el código y en el README.</p>
+    <p class="fineprint">Datos: Open-Meteo (pronóstico, marino e histórico), OpenStreetMap / Nominatim (© colaboradores de OpenStreetMap), constantes armónicas de mareas de la base de datos Neaps (código MIT) con datos de TICON-4, NOAA y otras fuentes que indica cada estación (CC BY 4.0, CC BY-NC 4.0 o dominio público), WorldTides (opcional) y referencias de FishBase y FAO. Ver el README.</p>
   </footer>
 
   <!-- Ficha de especie -->
@@ -189,7 +189,17 @@
         </select>
       </label>
 
-      <h3>Clave de WorldTides (mareas)</h3>
+      <h3>Fuente de las mareas</h3>
+      <label class="field">
+        <span>Fuente</span>
+        <select id="settings-tide-source">
+          <option value="harmonic">Predicción armónica por estación (sin registro, recomendada)</option>
+          <option value="worldtides">WorldTides (requiere clave)</option>
+        </select>
+      </label>
+      <p class="fineprint">La predicción armónica usa la estación de marea más cercana (a menos de 60 km) y sus constantes publicadas. No incluye viento ni presión.</p>
+
+      <h3>Clave de WorldTides (solo si la usas)</h3>
       <p class="fineprint">Regístrate gratis en worldtides.info y pega aquí tu clave. Se guarda solo en este navegador.</p>
       <form id="settings-tides-form" class="inline-form">
         <label for="settings-tides-key" class="sr-only">Clave de WorldTides</label>
@@ -218,6 +228,8 @@
   <script src="js/species.js"></script>
   <script src="js/location.js"></script>
   <script src="js/weather.js"></script>
+  <script src="js/vendor/tide-predictor.js"></script>
+  <script src="js/data/tides/manifest.js"></script>
   <script src="js/tides.js"></script>
   <script src="js/activity.js"></script>
   <script src="js/validation.js"></script>

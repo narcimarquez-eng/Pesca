@@ -1,0 +1,11 @@
+/* Generado por tools/build-tide-data.mjs. No editar a mano.
+ * Constantes armónicas de estaciones de marea: base de datos @neaps/tide-database (código MIT).
+ * Cada estación indica su fuente y su licencia (CC BY 4.0, CC BY-NC 4.0 o dominio público).
+ * Ver el README, apartado "Atribución y licencias".
+ */
+(function (root) {
+  'use strict';
+  const PescaApp = (root.PescaApp = root.PescaApp || {});
+  PescaApp.tideTiles = PescaApp.tideTiles || {};
+  PescaApp.tideTiles["-5_5"] = [{"id":"ticon/crozet-178-fra-uhslc_fd","name":"Crozet","lat":-46.425,"lon":51.87,"country":"FR","source":"TICON-4","sourceUrl":"https://www.seanoe.org/data/00980/109129/","license":"cc-by-4.0","datum":{"LAT":0.881,"MSL":1.257},"constituents":[["M2",0.1352,157.93],["N2",0.0316,140.74],["S2",0.0366,193.03],["K2",0.0098,188.41],["2N2",0.0048,115.5],["S1",0.0023,327.73],["K1",0.0273,134.61],["P1",0.0049,128.21],["O1",0.0272,299.5],["Q1",0.0091,278.82],["M4",0.0084,240.06],["MM",0.0154,223.03],["MF",0.0201,216.32],["SA",0.0329,147.35],["SSA",0.0183,134.6],["T2",0.0029,210.06],["J1",0.0024,180.4],["L2",0.0027,192.64],["MSF",0.0049,213.97],["MSQM",0.006,328.44],["M3",0.0021,323.79],["MU2",0.0035,103.55],["MTM",0.0062,138.24],["NU2",0.0065,141.69],["MN4",0.0032,223.35],["MS4",0.0083,276.24],["MA2",0.0025,63.32],["R3",0.0029,21.18]]},{"id":"ticon/ile_possession_crozet-173-fra-refmar","name":"Ile Possession Crozet","lat":-46.4257,"lon":51.8629,"country":"FR","source":"TICON-4","sourceUrl":"https://www.seanoe.org/data/00980/109129/","license":"cc-by-4.0","datum":{"LAT":-0.018,"MSL":0.368},"constituents":[["M2",0.1311,157.18],["N2",0.0259,135.11],["S2",0.0357,189.24],["K2",0.0098,190.26],["2N2",0.0049,113.64],["S1",0.0027,355.36],["K1",0.0265,135.57],["P1",0.0055,130.54],["O1",0.0271,300.21],["Q1",0.0112,274],["M4",0.0078,236.06],["MM",0.0145,208.31],["MF",0.0301,213.32],["SA",0.0284,152.84],["SSA",0.0258,186.16],["T2",0.0026,217.38],["J1",0.0028,175.12],["L2",0.0037,237.01],["2Q1",0.0025,242.03],["MSF",0.0141,128.38],["MSQM",0.008,281.58],["MU2",0.0037,94.18],["MTM",0.008,165.38],["NU2",0.0063,142.7],["MN4",0.0033,221.86],["MS4",0.0078,272.06],["OO1",0.0021,115.83],["MA2",0.0024,95.29],["MB2",0.0033,150.29],["R3",0.0027,17.64],["3L2",0.0042,144.42],["3N2",0.0065,303.66]]}];
+})(typeof window !== 'undefined' ? window : globalThis);

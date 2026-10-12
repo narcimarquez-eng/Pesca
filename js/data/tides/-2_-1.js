@@ -1,0 +1,11 @@
+/* Generado por tools/build-tide-data.mjs. No editar a mano.
+ * Constantes armónicas de estaciones de marea: base de datos @neaps/tide-database (código MIT).
+ * Cada estación indica su fuente y su licencia (CC BY 4.0, CC BY-NC 4.0 o dominio público).
+ * Ver el README, apartado "Atribución y licencias".
+ */
+(function (root) {
+  'use strict';
+  const PescaApp = (root.PescaApp = root.PescaApp || {});
+  PescaApp.tideTiles = PescaApp.tideTiles || {};
+  PescaApp.tideTiles["-2_-1"] = [{"id":"ticon/st_helena-292-shn-uhslc_fd","name":"St Helena","lat":-15.967,"lon":-5.7,"country":"SH","source":"TICON-4","sourceUrl":"https://www.seanoe.org/data/00980/109129/","license":"cc-by-4.0","datum":{"LAT":5.022,"MSL":5.617},"constituents":[["M2",0.3257,82.12],["N2",0.0618,72.39],["S2",0.1125,103.39],["K2",0.0324,99.13],["2N2",0.0108,61.39],["K1",0.0364,347.89],["P1",0.0083,334.99],["O1",0.0202,190.76],["Q1",0.0095,141.13],["M1",0.0032,259.45],["M4",0.0027,161.79],["MM",0.0068,350.56],["MF",0.0142,8.11],["SA",0.0291,26.41],["SSA",0.0199,41.66],["T2",0.0045,102.34],["J1",0.0023,44.05],["L2",0.0122,78.52],["R2",0.0032,23.81],["MSF",0.0054,46.46],["MSQM",0.0028,191.4],["EP2",0.0033,38.86],["MU2",0.0127,53.94],["MTM",0.0035,313.59],["NU2",0.0118,77.96],["LAMBDA2",0.0029,84.33],["MN4",0.002,88.04],["MKS2",0.0069,353.83],["OO1",0.0024,49.36],["MA2",0.0079,301.99],["MB2",0.0094,42.21],["SGM",0.002,291.4],["3L2",0.0058,207.1],["3N2",0.0059,287.84]]},{"id":"ticon/st_helena-sth-gbr-noc","name":"St Helena","lat":-15.9205,"lon":-5.7178,"country":"GB","source":"TICON-4","sourceUrl":"https://www.seanoe.org/data/00980/109129/","license":"cc-by-4.0","datum":{"LAT":-0.487,"MSL":0.126},"constituents":[["M2",0.3243,80.05],["N2",0.0666,70.87],["S2",0.1139,101.95],["K2",0.0322,97.67],["2N2",0.0103,61.33],["K1",0.0356,347.68],["P1",0.0088,335.25],["O1",0.0208,188.81],["Q1",0.0087,145.01],["M4",0.003,156.96],["MM",0.0065,0.94],["MF",0.0152,359.88],["SA",0.04,355.82],["SSA",0.0168,33.23],["T2",0.0057,92.74],["J1",0.0026,37.24],["L2",0.0074,87.64],["EP2",0.003,38.27],["MU2",0.0129,55.1],["MTM",0.0022,8.72],["NU2",0.0117,72.07],["OO1",0.0026,88.84],["MB2",0.0035,1.92]]}];
+})(typeof window !== 'undefined' ? window : globalThis);
