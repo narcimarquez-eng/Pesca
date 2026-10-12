@@ -20,10 +20,11 @@
   ];
 
   const GEO_ERROR_MESSAGES = {
-    1: 'Has denegado el permiso de ubicación. Puedes escribir el lugar manualmente.',
-    2: 'No se pudo determinar tu posición. Revisa el GPS o la conexión.',
-    3: 'Se agotó el tiempo para obtener tu ubicación. Inténtalo de nuevo.',
+    1: PescaApp.i18n.mark('Has denegado el permiso de ubicación. Puedes escribir el lugar manualmente.'),
+    2: PescaApp.i18n.mark('No se pudo determinar tu posición. Revisa el GPS o la conexión.'),
+    3: PescaApp.i18n.mark('Se agotó el tiempo para obtener tu ubicación. Inténtalo de nuevo.'),
   };
+  const GEO_ERROR_FALLBACK = PescaApp.i18n.mark('No se pudo obtener tu ubicación.');
 
   function loadSavedPlace() {
     return PescaApp.utils.storage.read(LOCATION_KEY, null);
@@ -59,7 +60,7 @@
     return new Promise((resolve, reject) => {
       const geolocation = root.navigator && root.navigator.geolocation;
       if (!geolocation) {
-        reject(new Error('Este navegador no permite obtener tu ubicación. Escribe el lugar manualmente.'));
+        reject(new Error(PescaApp.i18n.t('Este navegador no permite obtener tu ubicación. Escribe el lugar manualmente.')));
         return;
       }
       geolocation.getCurrentPosition(
@@ -69,7 +70,7 @@
             lon: position.coords.longitude,
             accuracyM: position.coords.accuracy,
           }),
-        (error) => reject(new Error(GEO_ERROR_MESSAGES[error.code] || 'No se pudo obtener tu ubicación.')),
+        (error) => reject(new Error(PescaApp.i18n.t(GEO_ERROR_MESSAGES[error.code] || GEO_ERROR_FALLBACK))),
         { enableHighAccuracy: false, timeout: 15000, maximumAge: 10 * 60 * 1000 }
       );
     });
@@ -93,7 +94,9 @@
   async function reverseGeocode(lat, lon) {
     const utils = PescaApp.utils;
     const config = PescaApp.config;
-    const cacheKey = `geo:${lat.toFixed(3)},${lon.toFixed(3)}`;
+    // El idioma forma parte de la clave: los nombres cambian de idioma con la interfaz.
+    const language = PescaApp.i18n.nominatimLanguage();
+    const cacheKey = `geo:${language}:${lat.toFixed(3)},${lon.toFixed(3)}`;
     const cached = utils.cache.get(cacheKey, config.cacheMs.geocoding);
     if (cached) return cached;
 
@@ -103,7 +106,7 @@
       lon: lon.toFixed(5),
       zoom: 12,
       addressdetails: 1,
-      'accept-language': config.language,
+      'accept-language': PescaApp.i18n.nominatimLanguage(),
     });
     const json = await utils.fetchJson(url);
     const place = normalizeNominatimPlace(json);
@@ -120,7 +123,7 @@
       format: 'jsonv2',
       limit: 5,
       addressdetails: 1,
-      'accept-language': config.language,
+      'accept-language': PescaApp.i18n.nominatimLanguage(),
     });
     const list = await utils.fetchJson(url);
     return (Array.isArray(list) ? list : [])
@@ -146,7 +149,7 @@
     // El catálogo de especies, las tallas y las vedas son de España. Solo se asigna zona en España:
     // en otro país, o si no se sabe el país, no hay referencia aunque la costa esté cerca.
     const zone = countryCode === 'es' ? PescaApp.species.classifyZone(lat, lon) : null;
-    const fallbackName = `Punto ${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+    const fallbackName = PescaApp.i18n.t('Punto {lat}, {lon}', { lat: lat.toFixed(3), lon: lon.toFixed(3) });
     return {
       name: name || fallbackName,
       locality,

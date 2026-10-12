@@ -42,9 +42,6 @@
      */
     worldTidesApiKey: '',
 
-    /** Idioma de los nombres de lugar que devuelve Nominatim. */
-    language: 'es',
-
     /** Tiempos de caché por tipo de dato, en milisegundos. */
     cacheMs: Object.freeze({
       forecast: 15 * MINUTE_MS,

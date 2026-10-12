@@ -9,7 +9,12 @@
 
   const PescaApp = (root.PescaApp = root.PescaApp || {});
 
-  const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  /** Abreviaturas de los meses: se marcan para traducirlas al mostrarse (formatMonths). */
+  const MONTH_NAMES = [
+    PescaApp.i18n.mark('ene'), PescaApp.i18n.mark('feb'), PescaApp.i18n.mark('mar'), PescaApp.i18n.mark('abr'),
+    PescaApp.i18n.mark('may'), PescaApp.i18n.mark('jun'), PescaApp.i18n.mark('jul'), PescaApp.i18n.mark('ago'),
+    PescaApp.i18n.mark('sep'), PescaApp.i18n.mark('oct'), PescaApp.i18n.mark('nov'), PescaApp.i18n.mark('dic'),
+  ];
 
   function catalog() {
     return PescaApp.speciesData;
@@ -115,10 +120,11 @@
 
   /** Lista de meses en abreviatura, en orden del año. Ejemplo: [10, 11, 1] → "ene, oct, nov". */
   function formatMonths(months) {
-    if (!Array.isArray(months) || months.length === 0) return 'Sin periodo definido';
+    if (!Array.isArray(months) || months.length === 0) return PescaApp.i18n.t('Sin periodo definido');
     return [...months]
       .sort((a, b) => a - b)
       .map((month) => MONTH_NAMES[month - 1])
+      .map((label) => (label === undefined ? label : PescaApp.i18n.t(label)))
       .join(', ');
   }
 

@@ -12,6 +12,7 @@
   'use strict';
 
   const PescaApp = (root.PescaApp = root.PescaApp || {});
+  const { t } = PescaApp.i18n;
 
   /** Exponente de la relación longitud-peso para peces de cuerpo alargado. */
   const DEFAULT_LENGTH_WEIGHT_EXPONENT = 3;
@@ -30,20 +31,20 @@
       return {
         a: species.lengthWeight.a,
         b: species.lengthWeight.b,
-        source: species.lengthWeight.source || 'Dato propio de la especie',
+        source: species.lengthWeight.source || t('Dato propio de la especie'),
       };
     }
     if (species && species.maxLengthCm > 0 && species.maxWeightKg > 0) {
       return {
         a: species.maxWeightKg / species.maxLengthCm ** DEFAULT_LENGTH_WEIGHT_EXPONENT,
         b: DEFAULT_LENGTH_WEIGHT_EXPONENT,
-        source: 'Calibrada con la longitud y el peso máximos orientativos',
+        source: t('Calibrada con la longitud y el peso máximos orientativos'),
       };
     }
     return {
       a: DEFAULT_LENGTH_WEIGHT_COEFFICIENT,
       b: DEFAULT_LENGTH_WEIGHT_EXPONENT,
-      source: 'Aproximación genérica para peces de cuerpo alargado',
+      source: t('Aproximación genérica para peces de cuerpo alargado'),
     };
   }
 
@@ -94,7 +95,9 @@
         {
           level: 'info',
           code: 'no-reference',
-          message: 'No hay referencia de tallas, vedas ni protecciones para este lugar. Consulta la normativa de tu país o región.',
+          message: t(
+            'No hay referencia de tallas, vedas ni protecciones para este lugar. Consulta la normativa de tu país o región.'
+          ),
         },
       ],
       mustRelease: false,
@@ -110,7 +113,7 @@
       alerts.push({
         level: 'info',
         code: 'unknown-species',
-        message: 'Especie fuera del catálogo: no se pueden comprobar tallas ni vedas.',
+        message: t('Especie fuera del catálogo: no se pueden comprobar tallas ni vedas.'),
       });
       return { alerts, mustRelease: false, minSizeCm: null };
     }
@@ -119,7 +122,7 @@
       alerts.push({
         level: 'danger',
         code: 'protected',
-        message: species.protectionNote || 'Especie protegida: no debe retenerse.',
+        message: species.protectionNote || t('Especie protegida: no debe retenerse.'),
       });
     }
 
@@ -128,25 +131,29 @@
       alerts.push({
         level: 'info',
         code: 'no-reference-size',
-        message: 'Sin talla de referencia confirmada para esta especie en esta zona. Consulta la normativa autonómica.',
+        message: t(
+          'Sin talla de referencia confirmada para esta especie en esta zona. Consulta la normativa autonómica.'
+        ),
       });
     } else if (length === null) {
       alerts.push({
         level: 'info',
         code: 'missing-length',
-        message: `Introduce la longitud para comprobar la talla mínima de referencia (${minSizeCm} cm).`,
+        message: t('Introduce la longitud para comprobar la talla mínima de referencia ({size} cm).', {
+          size: minSizeCm,
+        }),
       });
     } else if (length < minSizeCm) {
       alerts.push({
         level: 'danger',
         code: 'below-min-size',
-        message: `Por debajo de la talla mínima de referencia (${minSizeCm} cm). Debe devolverse.`,
+        message: t('Por debajo de la talla mínima de referencia ({size} cm). Debe devolverse.', { size: minSizeCm }),
       });
     } else {
       alerts.push({
         level: 'ok',
         code: 'legal-size',
-        message: `Talla igual o superior a la mínima de referencia (${minSizeCm} cm).`,
+        message: t('Talla igual o superior a la mínima de referencia ({size} cm).', { size: minSizeCm }),
       });
     }
 
@@ -156,13 +163,15 @@
       alerts.push({
         level: 'danger',
         code: 'closed-season',
-        message: `Periodo de veda o protección (${closedSeason.reason || 'sin motivo indicado'}). Debe devolverse.`,
+        message: t('Periodo de veda o protección ({reason}). Debe devolverse.', {
+          reason: closedSeason.reason || t('sin motivo indicado'),
+        }),
       });
     } else if (!Array.isArray(species.closedSeasons) || species.closedSeasons.length === 0) {
       alerts.push({
         level: 'info',
         code: 'no-closed-season-data',
-        message: 'No hay vedas registradas en la base de datos para esta especie. Comprueba la normativa vigente.',
+        message: t('No hay vedas registradas en la base de datos para esta especie. Comprueba la normativa vigente.'),
       });
     }
 

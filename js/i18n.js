@@ -146,6 +146,11 @@
     return COUNTRY_LOCALE.get(String(countryCode).toUpperCase()) || null;
   }
 
+  /** Idioma que pide Nominatim para los nombres de lugar: el del idioma activo. */
+  function nominatimLanguage() {
+    return current === 'zh-Hans' ? 'zh-CN' : current;
+  }
+
   /** Idioma que pide el navegador (en orden de preferencia), si la aplicación lo tiene. */
   function browserLocale(languages) {
     for (const language of languages || []) {
@@ -241,6 +246,7 @@
     isLocale,
     localeForCountry,
     browserLocale,
+    nominatimLanguage,
     resolveLocale,
     setLocale,
     applyDom,

@@ -96,18 +96,18 @@
 
   /** Códigos WMO de tiempo: [códigos, descripción, icono]. */
   const WEATHER_CODES = [
-    [[0], 'Despejado', '☀️'],
-    [[1], 'Mayormente despejado', '🌤️'],
-    [[2], 'Parcialmente nublado', '⛅'],
-    [[3], 'Cubierto', '☁️'],
-    [[45, 48], 'Niebla', '🌫️'],
-    [[51, 53, 55, 56, 57], 'Llovizna', '🌦️'],
-    [[61, 63, 65, 66, 67], 'Lluvia', '🌧️'],
-    [[71, 73, 75, 77], 'Nieve', '❄️'],
-    [[80, 81, 82], 'Chubascos', '🌦️'],
-    [[85, 86], 'Chubascos de nieve', '🌨️'],
-    [[95], 'Tormenta', '⛈️'],
-    [[96, 99], 'Tormenta con granizo', '⛈️'],
+    [[0], PescaApp.i18n.mark('Despejado'), '☀️'],
+    [[1], PescaApp.i18n.mark('Mayormente despejado'), '🌤️'],
+    [[2], PescaApp.i18n.mark('Parcialmente nublado'), '⛅'],
+    [[3], PescaApp.i18n.mark('Cubierto'), '☁️'],
+    [[45, 48], PescaApp.i18n.mark('Niebla'), '🌫️'],
+    [[51, 53, 55, 56, 57], PescaApp.i18n.mark('Llovizna'), '🌦️'],
+    [[61, 63, 65, 66, 67], PescaApp.i18n.mark('Lluvia'), '🌧️'],
+    [[71, 73, 75, 77], PescaApp.i18n.mark('Nieve'), '❄️'],
+    [[80, 81, 82], PescaApp.i18n.mark('Chubascos'), '🌦️'],
+    [[85, 86], PescaApp.i18n.mark('Chubascos de nieve'), '🌨️'],
+    [[95], PescaApp.i18n.mark('Tormenta'), '⛈️'],
+    [[96, 99], PescaApp.i18n.mark('Tormenta con granizo'), '⛈️'],
   ];
 
   /** Hora local de Open-Meteo: "YYYY-MM-DDTHH:MM" (los segundos y el desfase no se usan aquí). */
@@ -170,7 +170,7 @@
   /** Código WMO → descripción en castellano e icono. */
   function describeWeatherCode(code) {
     const found = WEATHER_CODES.find(([codes]) => codes.includes(code));
-    return found ? { label: found[1], icon: found[2] } : { label: 'Sin datos', icon: '❔' };
+    return found ? { label: PescaApp.i18n.t(found[1]), icon: found[2] } : { label: PescaApp.i18n.t('Sin datos'), icon: '❔' };
   }
 
   /** Construye la URL del pronóstico con condiciones actuales, serie horaria y un día pasado. */
@@ -205,7 +205,7 @@
   function normalizeForecast(json) {
     const utils = PescaApp.utils;
     if (!json || !json.current || !json.hourly || !Array.isArray(json.hourly.time)) {
-      throw new Error('La respuesta de Open-Meteo no tiene el formato esperado.');
+      throw new Error(PescaApp.i18n.t('La respuesta de Open-Meteo no tiene el formato esperado.'));
     }
 
     const current = json.current;
@@ -328,11 +328,11 @@
   function normalizeEnsemble(json) {
     const hourly = json && json.hourly;
     if (!hourly || !Array.isArray(hourly.time) || !hourly.time.length) {
-      throw new Error('El modelo de escenarios no devolvió horas.');
+      throw new Error(PescaApp.i18n.t('El modelo de escenarios no devolvió horas.'));
     }
     const sourceMs = hourly.time.map((text) => localTimeToMs(text, 0));
     const validMs = sourceMs.filter((ms) => ms !== null);
-    if (!validMs.length) throw new Error('Las horas del modelo de escenarios no son válidas.');
+    if (!validMs.length) throw new Error(PescaApp.i18n.t('Las horas del modelo de escenarios no son válidas.'));
 
     const gridMs = [];
     for (let ms = Math.min(...validMs); ms <= Math.max(...validMs); ms += HOUR_MS) gridMs.push(ms);
@@ -357,7 +357,7 @@
         });
         return member;
       });
-    if (!members.length) throw new Error('El modelo de escenarios no devolvió escenarios.');
+    if (!members.length) throw new Error(PescaApp.i18n.t('El modelo de escenarios no devolvió escenarios.'));
 
     return {
       times,
@@ -437,7 +437,7 @@
           past_days: pastDays,
           forecast_days: 1,
         }),
-        source: 'Open-Meteo (datos recientes)',
+        source: PescaApp.i18n.t('Open-Meteo (datos recientes)'),
       };
     }
 
@@ -447,7 +447,7 @@
         start_date: utils.shiftDateString(dayText, -1),
         end_date: dayText,
       }),
-      source: 'Open-Meteo Historical (archivo)',
+      source: PescaApp.i18n.t('Open-Meteo Historical (archivo)'),
     };
   }
 
@@ -456,11 +456,11 @@
     const utils = PescaApp.utils;
     const hourly = json && json.hourly;
     if (!hourly || !Array.isArray(hourly.time)) {
-      throw new Error('El servicio no devolvió datos históricos para esta ubicación.');
+      throw new Error(PescaApp.i18n.t('El servicio no devolvió datos históricos para esta ubicación.'));
     }
     const index = hourly.time.indexOf(hourKey);
     if (index < 0) {
-      throw new Error('El servicio no tiene datos para la hora de la captura.');
+      throw new Error(PescaApp.i18n.t('El servicio no tiene datos para la hora de la captura.'));
     }
     const valueAt = (name) => utils.toFiniteNumber(hourly[name] ? hourly[name][index] : null);
     const pressureHpa = valueAt('pressure_msl');

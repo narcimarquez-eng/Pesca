@@ -12,22 +12,23 @@
   'use strict';
 
   const PescaApp = (root.PescaApp = root.PescaApp || {});
+  const { t, mark } = PescaApp.i18n;
 
   /** Peso relativo de cada factor. */
   const WEIGHTS = Object.freeze({ pressure: 0.3, moon: 0.2, wind: 0.25, tide: 0.25 });
 
   /** Niveles textuales según la puntuación final. */
   const LEVELS = Object.freeze([
-    { below: 30, label: 'Muy baja' },
-    { below: 45, label: 'Baja' },
-    { below: 60, label: 'Moderada' },
-    { below: 75, label: 'Buena' },
-    { below: Infinity, label: 'Muy buena' },
+    { below: 30, label: mark('Muy baja') },
+    { below: 45, label: mark('Baja') },
+    { below: 60, label: mark('Moderada') },
+    { below: 75, label: mark('Buena') },
+    { below: Infinity, label: mark('Muy buena') },
   ]);
 
   function describeLevel(score) {
-    if (!Number.isFinite(score)) return 'Sin datos';
-    return LEVELS.find((level) => score < level.below).label;
+    if (!Number.isFinite(score)) return t('Sin datos');
+    return t(LEVELS.find((level) => score < level.below).label);
   }
 
   function clamp01(value) {
@@ -86,18 +87,26 @@
 
   function explainPressure(pressureHpa, trendHpa) {
     const utils = PescaApp.utils;
-    const parts = [`Presión de ${utils.formatNumber(pressureHpa, 0, 'hPa')}`];
+    const parts = [t('Presión de {value}', { value: utils.formatNumber(pressureHpa, 0, 'hPa') })];
     if (Number.isFinite(trendHpa)) {
       if (trendHpa <= -3) {
-        parts.push(`bajada rápida (${utils.formatNumber(trendHpa, 1)} hPa en 3 h), que suele anticipar cambio de tiempo`);
+        parts.push(
+          t('bajada rápida ({value} hPa en 3 h), que suele anticipar cambio de tiempo', {
+            value: utils.formatNumber(trendHpa, 1),
+          })
+        );
       } else if (trendHpa <= -1) {
-        parts.push('bajando, lo que suele favorecer la alimentación');
+        parts.push(t('bajando, lo que suele favorecer la alimentación'));
       } else if (trendHpa >= 3) {
-        parts.push(`subida rápida (+${utils.formatNumber(trendHpa, 1)} hPa en 3 h), que suele frenar la actividad`);
+        parts.push(
+          t('subida rápida (+{value} hPa en 3 h), que suele frenar la actividad', {
+            value: utils.formatNumber(trendHpa, 1),
+          })
+        );
       } else if (trendHpa >= 1) {
-        parts.push('subiendo ligeramente');
+        parts.push(t('subiendo ligeramente'));
       } else {
-        parts.push('estable');
+        parts.push(t('estable'));
       }
     }
     return `${parts.join(', ')}.`;
@@ -105,33 +114,37 @@
 
   function explainMoon(distanceToSyzygy) {
     if (distanceToSyzygy < 0.0625) {
-      return 'Luna nueva o llena: mareas vivas, que mueven más agua y alimento.';
+      return t('Luna nueva o llena: mareas vivas, que mueven más agua y alimento.');
     }
     if (distanceToSyzygy > 0.1875) {
-      return 'Cuarto creciente o menguante: mareas muertas, con menos movimiento de agua.';
+      return t('Cuarto creciente o menguante: mareas muertas, con menos movimiento de agua.');
     }
-    return 'Fase intermedia: efecto lunar moderado.';
+    return t('Fase intermedia: efecto lunar moderado.');
   }
 
   function explainWind(windSpeedKmh) {
     const text = PescaApp.utils.formatNumber(windSpeedKmh, 0, 'km/h');
-    if (windSpeedKmh <= 10) return `Viento flojo (${text}): condiciones muy cómodas.`;
-    if (windSpeedKmh <= 20) return `Viento moderado (${text}).`;
-    if (windSpeedKmh <= 30) return `Viento fuerte (${text}): dificulta el lanzado y el control del cebo.`;
-    return `Viento muy fuerte (${text}): poco recomendable para pescar desde orilla o embarcaciones pequeñas.`;
+    if (windSpeedKmh <= 10) return t('Viento flojo ({value}): condiciones muy cómodas.', { value: text });
+    if (windSpeedKmh <= 20) return t('Viento moderado ({value}).', { value: text });
+    if (windSpeedKmh <= 30) {
+      return t('Viento fuerte ({value}): dificulta el lanzado y el control del cebo.', { value: text });
+    }
+    return t('Viento muy fuerte ({value}): poco recomendable para pescar desde orilla o embarcaciones pequeñas.', {
+      value: text,
+    });
   }
 
   function explainTide(hoursFromExtreme, coefficient) {
     let timing;
     if (hoursFromExtreme < 1) {
-      timing = 'Pleamar o bajamar muy cercana: el agua está casi parada';
+      timing = t('Pleamar o bajamar muy cercana: el agua está casi parada');
     } else if (hoursFromExtreme < 2.5) {
-      timing = 'Marea moviéndose con intensidad moderada';
+      timing = t('Marea moviéndose con intensidad moderada');
     } else {
-      timing = 'Marea en plena corriente, que suele activar la alimentación';
+      timing = t('Marea en plena corriente, que suele activar la alimentación');
     }
     const strength =
-      Number.isFinite(coefficient) && coefficient >= 95 ? ', con coeficiente alto (corrientes fuertes)' : '';
+      Number.isFinite(coefficient) && coefficient >= 95 ? t(', con coeficiente alto (corrientes fuertes)') : '';
     return `${timing}${strength}.`;
   }
 
@@ -143,17 +156,22 @@
   }
 
   function buildSummary(factors, score, missing) {
-    let text = `Índice ${score}/100 (${describeLevel(score)}).`;
+    let text = t('Índice {score}/100 ({level}).', { score, level: describeLevel(score) });
     if (factors.length > 1) {
       const sorted = [...factors].sort((a, b) => b.score - a.score);
       const best = sorted[0];
       const worst = sorted[sorted.length - 1];
       if (best.score !== worst.score) {
-        text += ` Lo que más ayuda: ${best.label.toLowerCase()}. Lo que más resta: ${worst.label.toLowerCase()}.`;
+        const highlights = t('Lo que más ayuda: {best}. Lo que más resta: {worst}.', {
+          best: best.label.toLowerCase(),
+          worst: worst.label.toLowerCase(),
+        });
+        text += ` ${highlights}`;
       }
     }
     if (missing.length) {
-      text += ` Sin datos de: ${missing.map((label) => label.toLowerCase()).join(', ')}.`;
+      const list = missing.map((label) => label.toLowerCase()).join(', ');
+      text += ` ${t('Sin datos de: {list}.', { list })}`;
     }
     return text;
   }
@@ -176,15 +194,15 @@
       explanation: explainFactor(item.key, input),
     }));
     const available = definitions.filter((item) => item.score !== null);
-    const missing = definitions.filter((item) => item.score === null).map((item) => item.label);
+    const missing = definitions.filter((item) => item.score === null).map((item) => t(item.label));
 
     if (available.length === 0) {
       return {
         score: null,
-        level: 'Sin datos',
+        level: t('Sin datos'),
         factors: [],
         missing,
-        summary: 'No hay datos suficientes para calcular el índice.',
+        summary: t('No hay datos suficientes para calcular el índice.'),
       };
     }
 
@@ -194,7 +212,7 @@
       const factorScore = Math.round(clamp01(item.score) * 100);
       return {
         key: item.key,
-        label: item.label,
+        label: t(item.label),
         score: factorScore,
         sharePercent: Math.round((item.weight / totalWeight) * 100),
         tone: toneOf(clamp01(item.score)),
@@ -219,15 +237,15 @@
     return [
       {
         key: 'pressure',
-        label: 'Presión atmosférica',
+        label: mark('Presión atmosférica'),
         weight: WEIGHTS.pressure,
         score: scorePressure(input.pressureHpa, input.pressureTrend3hHpa),
       },
-      { key: 'moon', label: 'Fase lunar', weight: WEIGHTS.moon, score: scoreMoon(input.moonDistanceToSyzygy) },
-      { key: 'wind', label: 'Viento', weight: WEIGHTS.wind, score: scoreWind(input.windSpeedKmh) },
+      { key: 'moon', label: mark('Fase lunar'), weight: WEIGHTS.moon, score: scoreMoon(input.moonDistanceToSyzygy) },
+      { key: 'wind', label: mark('Viento'), weight: WEIGHTS.wind, score: scoreWind(input.windSpeedKmh) },
       {
         key: 'tide',
-        label: 'Marea',
+        label: mark('Marea'),
         weight: WEIGHTS.tide,
         score: scoreTide(input.hoursFromTideExtreme, input.tideCoefficient),
       },
@@ -262,18 +280,18 @@
 
   /** Estrellas (1–5) y etiqueta según la puntuación final ajustada (0–100). */
   const STAR_THRESHOLDS = Object.freeze([
-    { min: 80, stars: 5, label: 'Excelente' },
-    { min: 65, stars: 4, label: 'Buena' },
-    { min: 50, stars: 3, label: 'Aceptable' },
-    { min: 35, stars: 2, label: 'Floja' },
-    { min: -Infinity, stars: 1, label: 'Mala' },
+    { min: 80, stars: 5, label: mark('Excelente') },
+    { min: 65, stars: 4, label: mark('Buena') },
+    { min: 50, stars: 3, label: mark('Aceptable') },
+    { min: 35, stars: 2, label: mark('Floja') },
+    { min: -Infinity, stars: 1, label: mark('Mala') },
   ]);
 
   /** Estrellas y etiqueta de una puntuación final. Sin puntuación, "Sin datos". */
   function ratingFor(score) {
-    if (!Number.isFinite(score)) return { stars: null, label: 'Sin datos' };
+    if (!Number.isFinite(score)) return { stars: null, label: t('Sin datos') };
     const { stars, label } = STAR_THRESHOLDS.find((threshold) => score >= threshold.min);
-    return { stars, label };
+    return { stars, label: t(label) };
   }
 
   /**
@@ -289,15 +307,15 @@
     const gusts = utils.toFiniteNumber(input.windGustsKmh);
 
     if (THUNDERSTORM_CODES.includes(input.weatherCode)) {
-      adjustments.push({ key: 'storm', label: 'tormenta', cap: 20 });
+      adjustments.push({ key: 'storm', label: mark('tormenta'), cap: 20 });
     }
     if (rain !== null && rain >= 4) {
-      adjustments.push({ key: 'heavy-rain', label: 'lluvia intensa', penalty: 30 });
+      adjustments.push({ key: 'heavy-rain', label: mark('lluvia intensa'), penalty: 30 });
     } else if (rain !== null && rain >= 1) {
-      adjustments.push({ key: 'rain', label: 'lluvia', penalty: 10 });
+      adjustments.push({ key: 'rain', label: mark('lluvia'), penalty: 10 });
     }
     if ((wind !== null && wind >= 40) || (gusts !== null && gusts >= 50)) {
-      adjustments.push({ key: 'strong-wind', label: 'viento fuerte', cap: 25 });
+      adjustments.push({ key: 'strong-wind', label: mark('viento fuerte'), cap: 25 });
     }
     return adjustments;
   }
@@ -316,16 +334,17 @@
    * que faltan. No repite la etiqueta ni la puntuación, que la tarjeta ya muestra.
    */
   function buildRatingSummary(rating) {
-    if (rating.score === null) return 'No hay datos suficientes para valorar las condiciones.';
+    if (rating.score === null) return t('No hay datos suficientes para valorar las condiciones.');
     const parts = [];
     if (rating.adjustments.length) {
       const reasons = rating.adjustments.map((item) => `${item.label} (${item.effect})`);
-      parts.push(`Ajustes de seguridad: ${reasons.join(', ')}.`);
+      parts.push(t('Ajustes de seguridad: {reasons}.', { reasons: reasons.join(', ') }));
     } else {
-      parts.push('Sin ajustes de seguridad: no hay tormenta, lluvia ni viento fuerte.');
+      parts.push(t('Sin ajustes de seguridad: no hay tormenta, lluvia ni viento fuerte.'));
     }
     if (rating.missing.length) {
-      parts.push(`Sin datos de: ${rating.missing.map((label) => label.toLowerCase()).join(', ')}.`);
+      const list = rating.missing.map((label) => label.toLowerCase()).join(', ');
+      parts.push(t('Sin datos de: {list}.', { list }));
     }
     return parts.join(' ');
   }
@@ -348,7 +367,7 @@
         score: null,
         baseScore: null,
         stars: null,
-        label: 'Sin datos',
+        label: t('Sin datos'),
         adjustments: [],
         factors: [],
         missing: index.missing,
@@ -366,8 +385,8 @@
       label,
       adjustments: adjustments.map((item) => ({
         key: item.key,
-        label: item.label,
-        effect: item.penalty ? `−${item.penalty}` : `máximo ${item.cap}`,
+        label: t(item.label),
+        effect: item.penalty ? `−${item.penalty}` : t('máximo {value}', { value: item.cap }),
       })),
       factors: index.factors,
       missing: index.missing,

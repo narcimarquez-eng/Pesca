@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="PescaApp: asistente de pesca con clima, mareas, fase lunar, especies de la zona y registro de capturas.">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>PescaApp · Asistente de pesca</title>
+  <title data-i18n>PescaApp · Asistente de pesca</title>
   <link rel="stylesheet" href="css/styles.css">
   <script>
     /* Aplica el tema guardado antes de pintar la página, para evitar parpadeos. */
@@ -23,19 +23,19 @@
   </script>
 </head>
 <body>
-  <a class="skip-link" href="#main">Saltar al contenido</a>
+  <a class="skip-link" href="#main" data-i18n>Saltar al contenido</a>
 
   <header class="app-header">
     <div class="brand">
       <span class="brand-icon" aria-hidden="true">🎣</span>
       <div>
         <h1>PescaApp</h1>
-        <p>Clima, mareas, luna, especies y capturas para pescadores</p>
+        <p data-i18n>Clima, mareas, luna, especies y capturas para pescadores</p>
       </div>
     </div>
     <div class="header-actions">
-      <button id="theme-toggle" class="btn btn-ghost" type="button">🌓 Tema</button>
-      <button id="settings-open" class="btn btn-ghost" type="button">⚙️ Ajustes</button>
+      <button id="theme-toggle" class="btn btn-ghost" type="button" data-i18n>🌓 Tema</button>
+      <button id="settings-open" class="btn btn-ghost" type="button" data-i18n>⚙️ Ajustes</button>
     </div>
   </header>
 
@@ -44,109 +44,109 @@
     <!-- Ubicación -->
     <section class="card" aria-labelledby="location-title">
       <div class="card-header">
-        <h2 id="location-title">📍 Ubicación</h2>
+        <h2 id="location-title" data-i18n>📍 Ubicación</h2>
         <span id="zone-badge" class="badge" hidden></span>
       </div>
       <div id="location-current" class="location-current"></div>
       <div id="zone-alert" class="alert alert-warning" hidden></div>
       <div class="actions">
-        <button id="gps-button" class="btn btn-primary" type="button">Usar mi ubicación</button>
-        <button id="refresh-button" class="btn" type="button" disabled>Actualizar datos</button>
+        <button id="gps-button" class="btn btn-primary" type="button" data-i18n>Usar mi ubicación</button>
+        <button id="refresh-button" class="btn" type="button" disabled data-i18n>Actualizar datos</button>
       </div>
       <form id="location-form" class="inline-form" role="search">
-        <label for="location-query" class="sr-only">Ciudad, puerto, playa o coordenadas</label>
-        <input id="location-query" type="search" autocomplete="off" placeholder="Ciudad, puerto, playa o coordenadas (43.36, -8.41)">
-        <button class="btn" type="submit">Buscar</button>
+        <label for="location-query" class="sr-only" data-i18n>Ciudad, puerto, playa o coordenadas</label>
+        <input id="location-query" type="search" autocomplete="off" placeholder="Ciudad, puerto, playa o coordenadas (43.36, -8.41)" data-i18n-attrs="placeholder">
+        <button class="btn" type="submit" data-i18n>Buscar</button>
       </form>
       <ul id="location-results" class="results-list" hidden></ul>
       <div id="location-status" class="status" role="status" aria-live="polite" hidden></div>
     </section>
 
     <!-- Condiciones actuales -->
-    <section class="dashboard" aria-label="Condiciones actuales">
+    <section class="dashboard" aria-label="Condiciones actuales" data-i18n-attrs="aria-label">
       <article class="card" aria-labelledby="weather-title">
-        <div class="card-header"><h2 id="weather-title">🌤️ Clima actual</h2></div>
+        <div class="card-header"><h2 id="weather-title" data-i18n>🌤️ Clima actual</h2></div>
         <div id="weather-body" class="card-body"></div>
       </article>
 
       <article class="card" aria-labelledby="activity-title">
-        <div class="card-header"><h2 id="activity-title">🎯 Condiciones de pesca</h2></div>
+        <div class="card-header"><h2 id="activity-title" data-i18n>🎯 Condiciones de pesca</h2></div>
         <div id="activity-body" class="card-body"></div>
       </article>
 
       <article class="card" aria-labelledby="moon-title">
-        <div class="card-header"><h2 id="moon-title">🌙 Luna y coeficiente</h2></div>
+        <div class="card-header"><h2 id="moon-title" data-i18n>🌙 Luna y coeficiente</h2></div>
         <div id="moon-body" class="card-body"></div>
       </article>
 
       <article class="card card-wide" aria-labelledby="tides-title">
-        <div class="card-header"><h2 id="tides-title">🌊 Mareas</h2></div>
+        <div class="card-header"><h2 id="tides-title" data-i18n>🌊 Mareas</h2></div>
         <div id="tides-body" class="card-body"></div>
       </article>
     </section>
 
     <!-- Previsión por horas -->
     <section class="card card-wide" aria-labelledby="forecast-title">
-      <div class="card-header"><h2 id="forecast-title">🗓️ Previsión por horas</h2></div>
+      <div class="card-header"><h2 id="forecast-title" data-i18n>🗓️ Previsión por horas</h2></div>
       <div id="forecast-body" class="card-body"></div>
     </section>
 
     <!-- Especies -->
     <section class="card" aria-labelledby="species-title">
       <div class="card-header">
-        <h2 id="species-title">🐟 Especies de la zona</h2>
+        <h2 id="species-title" data-i18n>🐟 Especies de la zona</h2>
         <span id="species-count" class="muted"></span>
       </div>
-      <label for="species-filter" class="sr-only">Buscar especie</label>
-      <input id="species-filter" type="search" class="filter-input" autocomplete="off" placeholder="Buscar por nombre común o científico">
+      <label for="species-filter" class="sr-only" data-i18n>Buscar especie</label>
+      <input id="species-filter" type="search" class="filter-input" autocomplete="off" placeholder="Buscar por nombre común o científico" data-i18n-attrs="placeholder">
       <ul id="species-list" class="species-list"></ul>
-      <p class="fineprint">Lista orientativa de especies habituales de pesca recreativa. No es exhaustiva. Pulsa una especie para ver su ficha.</p>
+      <p class="fineprint" data-i18n>Lista orientativa de especies habituales de pesca recreativa. No es exhaustiva. Pulsa una especie para ver su ficha.</p>
     </section>
 
     <!-- Registro de capturas -->
     <section class="card" aria-labelledby="catch-title">
-      <div class="card-header"><h2 id="catch-title">📝 Registrar captura</h2></div>
+      <div class="card-header"><h2 id="catch-title" data-i18n>📝 Registrar captura</h2></div>
       <form id="catch-form" class="catch-form" novalidate>
         <div class="form-grid">
           <label class="field">
-            <span>Fecha y hora</span>
+            <span data-i18n>Fecha y hora</span>
             <input id="catch-datetime" type="datetime-local" required>
-            <small class="fineprint">Hora local del lugar. Las capturas pasadas usan datos históricos.</small>
+            <small class="fineprint" data-i18n>Hora local del lugar. Las capturas pasadas usan datos históricos.</small>
           </label>
           <label class="field">
-            <span>Especie</span>
-            <input id="catch-species" type="text" list="datalist-species" autocomplete="off" placeholder="Empieza a escribir…" required>
+            <span data-i18n>Especie</span>
+            <input id="catch-species" type="text" list="datalist-species" autocomplete="off" placeholder="Empieza a escribir…" required data-i18n-attrs="placeholder">
           </label>
           <label class="field">
-            <span>Peso (kg)</span>
-            <input id="catch-weight" type="text" inputmode="decimal" placeholder="Ej.: 1,25">
+            <span data-i18n>Peso (kg)</span>
+            <input id="catch-weight" type="text" inputmode="decimal" placeholder="Ej.: 1,25" data-i18n-attrs="placeholder">
           </label>
           <label class="field">
-            <span>Longitud (cm)</span>
-            <input id="catch-length" type="text" inputmode="decimal" placeholder="Ej.: 42">
+            <span data-i18n>Longitud (cm)</span>
+            <input id="catch-length" type="text" inputmode="decimal" placeholder="Ej.: 42" data-i18n-attrs="placeholder">
           </label>
           <label class="field">
-            <span>Cebo</span>
-            <input id="catch-bait" type="text" list="datalist-baits" autocomplete="off" placeholder="Ej.: gamba">
+            <span data-i18n>Cebo</span>
+            <input id="catch-bait" type="text" list="datalist-baits" autocomplete="off" placeholder="Ej.: gamba" data-i18n-attrs="placeholder">
           </label>
           <label class="field">
-            <span>Técnica</span>
-            <input id="catch-technique" type="text" list="datalist-techniques" autocomplete="off" placeholder="Ej.: spinning">
+            <span data-i18n>Técnica</span>
+            <input id="catch-technique" type="text" list="datalist-techniques" autocomplete="off" placeholder="Ej.: spinning" data-i18n-attrs="placeholder">
           </label>
           <label class="field field-wide">
-            <span>Notas</span>
-            <textarea id="catch-notes" rows="2" placeholder="Corriente, color del agua, observaciones…"></textarea>
+            <span data-i18n>Notas</span>
+            <textarea id="catch-notes" rows="2" placeholder="Corriente, color del agua, observaciones…" data-i18n-attrs="placeholder"></textarea>
           </label>
           <label class="field field-wide">
-            <span>Foto (opcional)</span>
+            <span data-i18n>Foto (opcional)</span>
             <input id="catch-photo" type="file" accept="image/*">
-            <img id="catch-photo-preview" class="photo-preview" alt="Vista previa de la foto" hidden>
+            <img id="catch-photo-preview" class="photo-preview" alt="Vista previa de la foto" data-i18n-attrs="alt" hidden>
           </label>
         </div>
         <p id="catch-place" class="muted"></p>
         <div id="catch-assessment" class="assessment"></div>
         <div class="actions">
-          <button id="catch-submit" class="btn btn-primary" type="submit">Guardar captura</button>
+          <button id="catch-submit" class="btn btn-primary" type="submit" data-i18n>Guardar captura</button>
         </div>
         <div id="catch-status" class="status" role="status" aria-live="polite" hidden></div>
       </form>
@@ -155,12 +155,12 @@
     <!-- Historial -->
     <section class="card" aria-labelledby="log-title">
       <div class="card-header">
-        <h2 id="log-title">📚 Historial de capturas</h2>
+        <h2 id="log-title" data-i18n>📚 Historial de capturas</h2>
         <span id="catch-count" class="muted"></span>
       </div>
       <div class="actions">
-        <button id="export-json" class="btn" type="button">Exportar JSON</button>
-        <button id="export-csv" class="btn" type="button">Exportar CSV</button>
+        <button id="export-json" class="btn" type="button" data-i18n>Exportar JSON</button>
+        <button id="export-csv" class="btn" type="button" data-i18n>Exportar CSV</button>
       </div>
       <div id="log-status" class="status" role="status" aria-live="polite" hidden></div>
       <div id="catch-list" class="catch-list"></div>
@@ -168,58 +168,62 @@
   </main>
 
   <footer class="app-footer">
-    <p class="legal"><strong>Aviso legal:</strong> PescaApp es una herramienta orientativa y no sustituye a la normativa oficial. Antes de pescar, consulta la normativa vigente de tu país o región (tallas mínimas, cupos, vedas y zonas protegidas). Las tallas, vedas y protecciones solo se comprueban en España: en otros países no hay referencia. Las mareas, el clima, la fase lunar y el índice de actividad son estimaciones.</p>
-    <p class="fineprint">Datos: Open-Meteo (pronóstico, marino e histórico), OpenStreetMap / Nominatim (© colaboradores de OpenStreetMap), constantes armónicas de mareas de la base de datos Neaps (código MIT) con datos de TICON-4, NOAA y otras fuentes que indica cada estación (CC BY 4.0, CC BY-NC 4.0 o dominio público), WorldTides (opcional) y referencias de FishBase y FAO. Ver el README.</p>
+    <p class="legal" data-i18n><strong>Aviso legal:</strong> PescaApp es una herramienta orientativa y no sustituye a la normativa oficial. Antes de pescar, consulta la normativa vigente de tu país o región (tallas mínimas, cupos, vedas y zonas protegidas). Las tallas, vedas y protecciones solo se comprueban en España: en otros países no hay referencia. Las mareas, el clima, la fase lunar y el índice de actividad son estimaciones.</p>
+    <p class="fineprint" data-i18n>Datos: Open-Meteo (pronóstico, marino e histórico), OpenStreetMap / Nominatim (© colaboradores de OpenStreetMap), constantes armónicas de mareas de la base de datos Neaps (código MIT) con datos de TICON-4, NOAA y otras fuentes que indica cada estación (CC BY 4.0, CC BY-NC 4.0 o dominio público), WorldTides (opcional) y referencias de FishBase y FAO. Ver el README.</p>
   </footer>
 
   <!-- Ficha de especie -->
   <dialog id="species-dialog" class="dialog" aria-labelledby="species-dialog-body">
     <div id="species-dialog-body" class="dialog-body"></div>
     <div class="dialog-footer">
-      <button id="species-dialog-close" class="btn" type="button">Cerrar</button>
+      <button id="species-dialog-close" class="btn" type="button" data-i18n>Cerrar</button>
     </div>
   </dialog>
 
   <!-- Ajustes -->
   <dialog id="settings-dialog" class="dialog" aria-labelledby="settings-title">
     <div class="dialog-body">
-      <h2 id="settings-title">Ajustes</h2>
+      <h2 id="settings-title" data-i18n>Ajustes</h2>
 
-      <h3>Tema</h3>
+      <h3 data-i18n>Tema</h3>
       <label class="field">
-        <span>Apariencia</span>
+        <span data-i18n>Apariencia</span>
         <select id="settings-theme">
-          <option value="auto">Automático (según el sistema)</option>
-          <option value="light">Claro</option>
-          <option value="dark">Oscuro</option>
+          <option value="auto" data-i18n>Automático (según el sistema)</option>
+          <option value="light" data-i18n>Claro</option>
+          <option value="dark" data-i18n>Oscuro</option>
         </select>
       </label>
-
-      <h3>Fuente de las mareas</h3>
       <label class="field">
-        <span>Fuente</span>
+        <span data-i18n>Idioma</span>
+        <select id="settings-language"></select>
+      </label>
+
+      <h3 data-i18n>Fuente de las mareas</h3>
+      <label class="field">
+        <span data-i18n>Fuente</span>
         <select id="settings-tide-source">
-          <option value="harmonic">Predicción armónica por estación (sin registro, recomendada)</option>
-          <option value="worldtides">WorldTides (requiere clave)</option>
+          <option value="harmonic" data-i18n>Predicción armónica por estación (sin registro, recomendada)</option>
+          <option value="worldtides" data-i18n>WorldTides (requiere clave)</option>
         </select>
       </label>
-      <p class="fineprint">La predicción armónica usa la estación de marea más cercana (a menos de 60 km) y sus constantes publicadas. No incluye viento ni presión.</p>
+      <p class="fineprint" data-i18n>La predicción armónica usa la estación de marea más cercana (a menos de 60 km) y sus constantes publicadas. No incluye viento ni presión.</p>
 
-      <h3>Clave de WorldTides (solo si la usas)</h3>
-      <p class="fineprint">Regístrate gratis en worldtides.info y pega aquí tu clave. Se guarda solo en este navegador.</p>
+      <h3 data-i18n>Clave de WorldTides (solo si la usas)</h3>
+      <p class="fineprint" data-i18n>Regístrate gratis en worldtides.info y pega aquí tu clave. Se guarda solo en este navegador.</p>
       <form id="settings-tides-form" class="inline-form">
-        <label for="settings-tides-key" class="sr-only">Clave de WorldTides</label>
-        <input id="settings-tides-key" type="password" autocomplete="off" placeholder="Clave de WorldTides">
-        <button class="btn btn-primary" type="submit">Guardar</button>
+        <label for="settings-tides-key" class="sr-only" data-i18n>Clave de WorldTides</label>
+        <input id="settings-tides-key" type="password" autocomplete="off" placeholder="Clave de WorldTides" data-i18n-attrs="placeholder">
+        <button class="btn btn-primary" type="submit" data-i18n>Guardar</button>
       </form>
       <div id="settings-tides-status" class="status" role="status" aria-live="polite" hidden></div>
 
-      <h3>Datos</h3>
-      <p class="fineprint">Borra las capturas, la ubicación y la caché guardadas en este navegador.</p>
-      <button id="settings-clear-data" class="btn btn-danger" type="button">Borrar todos los datos</button>
+      <h3 data-i18n>Datos</h3>
+      <p class="fineprint" data-i18n>Borra las capturas, la ubicación y la caché guardadas en este navegador.</p>
+      <button id="settings-clear-data" class="btn btn-danger" type="button" data-i18n>Borrar todos los datos</button>
     </div>
     <div class="dialog-footer">
-      <button id="settings-close" class="btn" type="button">Cerrar</button>
+      <button id="settings-close" class="btn" type="button" data-i18n>Cerrar</button>
     </div>
   </dialog>
 

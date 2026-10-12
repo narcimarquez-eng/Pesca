@@ -14,7 +14,13 @@
   const HOUR_MS = 60 * MINUTE_MS;
   const DAY_MS = 24 * HOUR_MS;
   const KM_PER_KNOT = 1.852;
-  const COMPASS_POINTS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSO', 'SO', 'OSO', 'O', 'ONO', 'NO', 'NNO'];
+  /** Rumbos: se marcan para traducirlos al mostrarse (cardinalDirection). */
+  const COMPASS_POINTS = [
+    PescaApp.i18n.mark('N'), PescaApp.i18n.mark('NNE'), PescaApp.i18n.mark('NE'), PescaApp.i18n.mark('ENE'),
+    PescaApp.i18n.mark('E'), PescaApp.i18n.mark('ESE'), PescaApp.i18n.mark('SE'), PescaApp.i18n.mark('SSE'),
+    PescaApp.i18n.mark('S'), PescaApp.i18n.mark('SSO'), PescaApp.i18n.mark('SO'), PescaApp.i18n.mark('OSO'),
+    PescaApp.i18n.mark('O'), PescaApp.i18n.mark('ONO'), PescaApp.i18n.mark('NO'), PescaApp.i18n.mark('NNO'),
+  ];
   const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
   /** Prefijo de las claves de localStorage (se toma de la configuración). */
@@ -107,7 +113,7 @@
   function cardinalDirection(degrees) {
     if (!Number.isFinite(degrees)) return '—';
     const sector = Math.round(positiveModulo(degrees, 360) / 22.5) % 16;
-    return COMPASS_POINTS[sector];
+    return PescaApp.i18n.t(COMPASS_POINTS[sector]);
   }
 
   /** km/h → nudos (1 nudo = 1,852 km/h). */
@@ -118,7 +124,7 @@
   /** Formato numérico español (coma decimal). Devuelve "—" si no hay valor. */
   function formatNumber(value, decimals = 0, unit = '') {
     if (!Number.isFinite(value)) return '—';
-    const text = value.toLocaleString('es-ES', {
+    const text = value.toLocaleString(PescaApp.i18n.intlLocale(), {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     });
@@ -280,7 +286,7 @@
         body = null;
       }
       if (!response.ok) {
-        const error = new Error(`El servicio respondió con error ${response.status}.`);
+        const error = new Error(PescaApp.i18n.t('El servicio respondió con error {status}.', { status: response.status }));
         error.status = response.status;
         error.body = body;
         throw error;
@@ -288,7 +294,7 @@
       return body;
     } catch (error) {
       if (error && error.name === 'AbortError') {
-        throw new Error('La petición tardó demasiado. Inténtalo de nuevo.');
+        throw new Error(PescaApp.i18n.t('La petición tardó demasiado. Inténtalo de nuevo.'));
       }
       throw error;
     } finally {
@@ -298,11 +304,11 @@
 
   /** Mensaje legible para mostrar al usuario a partir de cualquier error. */
   function describeError(error) {
-    if (!error) return 'Error desconocido.';
+    if (!error) return PescaApp.i18n.t('Error desconocido.');
     if (error instanceof TypeError) {
-      return 'No se pudo conectar con el servicio (sin conexión, bloqueo del navegador o CORS).';
+      return PescaApp.i18n.t('No se pudo conectar con el servicio (sin conexión, bloqueo del navegador o CORS).');
     }
-    return error.message || 'Error inesperado.';
+    return error.message || PescaApp.i18n.t('Error inesperado.');
   }
 
   /** Construye una URL con parámetros. Omite los vacíos y une las listas con comas. */

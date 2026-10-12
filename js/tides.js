@@ -21,6 +21,11 @@
 
   const PescaApp = (root.PescaApp = root.PescaApp || {});
 
+  /** Texto traducido al idioma activo. Se busca al llamarlo, no al cargar el módulo. */
+  function t(source, vars) {
+    return PescaApp.i18n.t(source, vars);
+  }
+
   const HOUR_MS = 60 * 60 * 1000;
   const DAY_MS = 24 * HOUR_MS;
 
@@ -60,9 +65,9 @@
   const SOURCE_WORLDTIDES = 'worldtides';
 
   const LICENSE_LABELS = Object.freeze({
-    'cc-by-4.0': 'CC BY 4.0',
-    'cc-by-nc-4.0': 'CC BY-NC 4.0',
-    'public domain': 'Dominio público',
+    'cc-by-4.0': PescaApp.i18n.mark('CC BY 4.0'),
+    'cc-by-nc-4.0': PescaApp.i18n.mark('CC BY-NC 4.0'),
+    'public domain': PescaApp.i18n.mark('Dominio público'),
   });
 
   /** Peticiones de teselas en curso o ya cargadas, por clave. */
@@ -122,10 +127,10 @@
   }
 
   function describeCoefficient(coefficient) {
-    if (!Number.isFinite(coefficient)) return 'Sin dato';
-    if (coefficient >= 95) return 'Mareas vivas';
-    if (coefficient <= 45) return 'Mareas muertas';
-    return 'Mareas intermedias';
+    if (!Number.isFinite(coefficient)) return t('Sin dato');
+    if (coefficient >= 95) return t('Mareas vivas');
+    if (coefficient <= 45) return t('Mareas muertas');
+    return t('Mareas intermedias');
   }
 
   /** Coeficiente a partir de la amplitud del día y la media del año. */
@@ -211,7 +216,7 @@
     if (PescaApp.tideTiles && PescaApp.tideTiles[key]) return Promise.resolve();
     const doc = root.document;
     if (!doc) {
-      return Promise.reject(new Error('Los datos de marea solo se pueden cargar en el navegador.'));
+      return Promise.reject(new Error(t('Los datos de marea solo se pueden cargar en el navegador.')));
     }
     if (!tileRequests.has(key)) {
       const request = new Promise((resolve, reject) => {
@@ -222,7 +227,7 @@
         script.onerror = () => {
           tileRequests.delete(key);
           script.remove();
-          reject(new Error(`No se pudieron cargar los datos de marea de la zona ${key}.`));
+          reject(new Error(t('No se pudieron cargar los datos de marea de la zona {key}.', { key })));
         };
         doc.head.appendChild(script);
       });
@@ -259,7 +264,8 @@
   }
 
   function describeLicense(type) {
-    return LICENSE_LABELS[type] || type || 'Licencia no indicada';
+    if (LICENSE_LABELS[type]) return t(LICENSE_LABELS[type]);
+    return type || t('Licencia no indicada');
   }
 
   /** Datos de la estación para mostrarlos y citarlos. */
@@ -275,8 +281,8 @@
       license: station.license,
       licenseLabel: describeLicense(station.license),
       referenceLabel: station.datum
-        ? 'Alturas sobre LAT (bajamar astronómica)'
-        : 'Alturas sobre el nivel medio del mar',
+        ? t('Alturas sobre LAT (bajamar astronómica)')
+        : t('Alturas sobre el nivel medio del mar'),
     };
   }
 
@@ -393,7 +399,9 @@
     const found = findNearestStation(lat, lon, candidates);
     if (!found) {
       const error = new Error(
-        `No hay ninguna estación de marea a menos de ${PescaApp.config.tides.stationMaxDistanceKm} km de este punto. Prueba con un puerto cercano o cambia la fuente en Ajustes.`
+        t('No hay ninguna estación de marea a menos de {km} km de este punto. Prueba con un puerto cercano o cambia la fuente en Ajustes.', {
+          km: PescaApp.config.tides.stationMaxDistanceKm,
+        })
       );
       error.code = 'no-station';
       throw error;
@@ -475,10 +483,10 @@
   function normalizeTides(json) {
     const utils = PescaApp.utils;
     if (!json || typeof json !== 'object') {
-      throw new Error('La respuesta de WorldTides no tiene el formato esperado.');
+      throw new Error(t('La respuesta de WorldTides no tiene el formato esperado.'));
     }
     if (json.error) {
-      throw new Error(`WorldTides devolvió un error: ${json.error}`);
+      throw new Error(t('WorldTides devolvió un error: {error}', { error: json.error }));
     }
 
     const heights = (Array.isArray(json.heights) ? json.heights : [])
@@ -513,23 +521,28 @@
       country: null,
       timeZone: undefined,
       distanceKm: Number.isFinite(distanceM) ? PescaApp.utils.round(distanceM / 1000, 1) : null,
-      source: 'WorldTides',
+      source: t('WorldTides'),
       sourceUrl: 'https://www.worldtides.info',
       license: null,
-      licenseLabel: 'Términos de WorldTides',
-      referenceLabel: 'Alturas según el datum de WorldTides',
+      licenseLabel: t('Términos de WorldTides'),
+      referenceLabel: t('Alturas según el datum de WorldTides'),
     };
   }
 
   /** Convierte errores HTTP de WorldTides en mensajes comprensibles. */
   function translateTidesError(error) {
     if (error && (error.status === 401 || error.status === 403)) {
-      return new Error('La clave de WorldTides no es válida o se han agotado sus créditos.');
+      return new Error(t('La clave de WorldTides no es válida o se han agotado sus créditos.'));
     }
     if (error && error.status === 429) {
-      return new Error('Hay demasiadas peticiones a WorldTides. Prueba más tarde.');
+      return new Error(t('Hay demasiadas peticiones a WorldTides. Prueba más tarde.'));
     }
     return error instanceof Error ? error : new Error(String(error));
+  }
+
+  /** Añade la estación de WorldTides con los textos del idioma actual. No se guarda en la caché. */
+  function withWorldTidesStation(tides) {
+    return { ...tides, station: describeWorldTidesStation(tides) };
   }
 
   /** Pide alturas y extremos a WorldTides, con caché que debe cubrir la ventana pedida. */
@@ -537,7 +550,7 @@
     const utils = PescaApp.utils;
     const cached = utils.cache.get(cacheKey, maxAgeMs);
     if (cached && cached.coversStartMs <= requiredStartMs && cached.coversEndMs >= requiredEndMs) {
-      return cached;
+      return withWorldTidesStation(cached);
     }
 
     const lengthSeconds = Math.ceil((endMs - startMs) / 1000);
@@ -557,15 +570,15 @@
     }
 
     const normalized = normalizeTides(json);
+    // La caché guarda solo datos, sin textos traducidos: puede sobrevivir a un cambio de idioma.
     const tides = {
       ...normalized,
       method: SOURCE_WORLDTIDES,
-      station: describeWorldTidesStation(normalized),
       coversStartMs: startMs,
       coversEndMs: startMs + lengthSeconds * 1000,
     };
     utils.cache.set(cacheKey, tides);
-    return tides;
+    return withWorldTidesStation(tides);
   }
 
   /** Vista en vivo con WorldTides: ventana de 3 h atrás y 33 h adelante, caché de 12 h. */
@@ -612,7 +625,7 @@
   async function getLiveTides(lat, lon, apiKey, now = new Date()) {
     if (getSource() === SOURCE_WORLDTIDES) {
       if (!apiKey) {
-        throw new Error('Has elegido WorldTides, pero falta la clave. Introdúcela en Ajustes o usa la predicción armónica.');
+        throw new Error(t('Has elegido WorldTides, pero falta la clave. Introdúcela en Ajustes o usa la predicción armónica.'));
       }
       return getWorldTidesLive(lat, lon, apiKey, now);
     }
@@ -724,7 +737,7 @@
       nextHigh: summary.nextHigh ? { ts: summary.nextHigh.ts, height: summary.nextHigh.height } : null,
       nextLow: summary.nextLow ? { ts: summary.nextLow.ts, height: summary.nextLow.height } : null,
       coefficient: hasCoefficient ? tides.coefficient : null,
-      coefficientSource: hasCoefficient ? 'predicción armónica' : null,
+      coefficientSource: hasCoefficient ? t('predicción armónica') : null,
       station: tides.station
         ? {
             name: tides.station.name,

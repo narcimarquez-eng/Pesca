@@ -11,6 +11,11 @@
 
   const PescaApp = (root.PescaApp = root.PescaApp || {});
 
+  /** Texto traducido al idioma activo. Se busca al llamarlo, no al cargar el módulo. */
+  function t(source, vars) {
+    return PescaApp.i18n.t(source, vars);
+  }
+
   /** Periodo sinódico medio de la Luna, en días. */
   const SYNODIC_MONTH_DAYS = 29.530588853;
 
@@ -19,14 +24,14 @@
 
   /** Fases en orden. Cada una ocupa un octavo del ciclo, centrado en su punto nominal. */
   const PHASES = Object.freeze([
-    { name: 'Luna nueva', icon: '🌑' },
-    { name: 'Luna creciente', icon: '🌒' },
-    { name: 'Cuarto creciente', icon: '🌓' },
-    { name: 'Gibosa creciente', icon: '🌔' },
-    { name: 'Luna llena', icon: '🌕' },
-    { name: 'Gibosa menguante', icon: '🌖' },
-    { name: 'Cuarto menguante', icon: '🌗' },
-    { name: 'Luna menguante', icon: '🌘' },
+    { name: PescaApp.i18n.mark('Luna nueva'), icon: '🌑' },
+    { name: PescaApp.i18n.mark('Luna creciente'), icon: '🌒' },
+    { name: PescaApp.i18n.mark('Cuarto creciente'), icon: '🌓' },
+    { name: PescaApp.i18n.mark('Gibosa creciente'), icon: '🌔' },
+    { name: PescaApp.i18n.mark('Luna llena'), icon: '🌕' },
+    { name: PescaApp.i18n.mark('Gibosa menguante'), icon: '🌖' },
+    { name: PescaApp.i18n.mark('Cuarto menguante'), icon: '🌗' },
+    { name: PescaApp.i18n.mark('Luna menguante'), icon: '🌘' },
   ]);
 
   /** Fecha → día juliano (UTC). */
@@ -64,11 +69,11 @@
       ageDays: Math.round(ageDays * 10) / 10,
       fraction,
       illuminationPercent: Math.round(illumination * 100),
-      name: PHASES[phaseIndex].name,
+      name: t(PHASES[phaseIndex].name),
       icon: PHASES[phaseIndex].icon,
       distanceToSyzygy,
       nextSyzygy: {
-        name: isNextFull ? 'Luna llena' : 'Luna nueva',
+        name: isNextFull ? t('Luna llena') : t('Luna nueva'),
         daysAway: Math.round(daysToNextSyzygy * 10) / 10,
         date: new Date(date.getTime() + daysToNextSyzygy * 86400000),
       },

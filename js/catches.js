@@ -15,34 +15,34 @@
    * Excel en español abre el archivo sin problemas. La foto no se exporta a CSV.
    */
   const CSV_COLUMNS = [
-    { header: 'ID', value: (record) => record.id },
-    { header: 'Fecha y hora', value: (record) => record.dateTime },
-    { header: 'Especie', value: (record) => record.speciesName },
-    { header: 'Nombre científico', value: (record) => record.scientificName },
-    { header: 'Lugar', value: (record) => record.place && record.place.name },
-    { header: 'Zona', value: (record) => record.zoneId },
-    { header: 'Peso (kg)', value: (record) => record.weightKg },
-    { header: 'Longitud (cm)', value: (record) => record.lengthCm },
-    { header: 'Peso estimado (kg)', value: (record) => record.estimatedWeightKg },
-    { header: 'Talla mínima de referencia (cm)', value: (record) => record.assessment && record.assessment.minSizeCm },
-    { header: 'Devolver', value: (record) => (record.assessment && record.assessment.mustRelease ? 'Sí' : 'No') },
-    { header: 'Cebo', value: (record) => record.bait },
-    { header: 'Técnica', value: (record) => record.technique },
-    { header: 'Notas', value: (record) => record.notes },
-    { header: 'Temperatura del aire (°C)', value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.airTemperatureC },
-    { header: 'Temperatura del agua (°C)', value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.waterTemperatureC },
-    { header: 'Presión (hPa)', value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.pressureHpa },
-    { header: 'Tendencia presión 3 h (hPa)', value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.pressureTrend3hHpa },
-    { header: 'Viento (km/h)', value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.windSpeedKmh },
-    { header: 'Dirección del viento (°)', value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.windDirectionDeg },
-    { header: 'Nubosidad (%)', value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.cloudCoverPercent },
-    { header: 'Precipitación (mm)', value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.precipitationMm },
-    { header: 'Fase lunar', value: (record) => record.conditions && record.conditions.moon && record.conditions.moon.name },
-    { header: 'Altura de marea (m)', value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.heightM },
-    { header: 'Coeficiente de marea', value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.coefficient },
-    { header: 'Origen del coeficiente', value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.coefficientSource },
-    { header: 'Índice de actividad', value: (record) => record.conditions && record.conditions.activity && record.conditions.activity.score },
-    { header: 'Origen de las condiciones', value: (record) => record.conditions && record.conditions.source },
+    { header: PescaApp.i18n.mark('ID'), value: (record) => record.id },
+    { header: PescaApp.i18n.mark('Fecha y hora'), value: (record) => record.dateTime },
+    { header: PescaApp.i18n.mark('Especie'), value: (record) => record.speciesName },
+    { header: PescaApp.i18n.mark('Nombre científico'), value: (record) => record.scientificName },
+    { header: PescaApp.i18n.mark('Lugar'), value: (record) => record.place && record.place.name },
+    { header: PescaApp.i18n.mark('Zona'), value: (record) => record.zoneId },
+    { header: PescaApp.i18n.mark('Peso (kg)'), value: (record) => record.weightKg },
+    { header: PescaApp.i18n.mark('Longitud (cm)'), value: (record) => record.lengthCm },
+    { header: PescaApp.i18n.mark('Peso estimado (kg)'), value: (record) => record.estimatedWeightKg },
+    { header: PescaApp.i18n.mark('Talla mínima de referencia (cm)'), value: (record) => record.assessment && record.assessment.minSizeCm },
+    { header: PescaApp.i18n.mark('Devolver'), value: (record) => (record.assessment && record.assessment.mustRelease ? PescaApp.i18n.t('Sí') : PescaApp.i18n.t('No')) },
+    { header: PescaApp.i18n.mark('Cebo'), value: (record) => record.bait },
+    { header: PescaApp.i18n.mark('Técnica'), value: (record) => record.technique },
+    { header: PescaApp.i18n.mark('Notas'), value: (record) => record.notes },
+    { header: PescaApp.i18n.mark('Temperatura del aire (°C)'), value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.airTemperatureC },
+    { header: PescaApp.i18n.mark('Temperatura del agua (°C)'), value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.waterTemperatureC },
+    { header: PescaApp.i18n.mark('Presión (hPa)'), value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.pressureHpa },
+    { header: PescaApp.i18n.mark('Tendencia presión 3 h (hPa)'), value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.pressureTrend3hHpa },
+    { header: PescaApp.i18n.mark('Viento (km/h)'), value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.windSpeedKmh },
+    { header: PescaApp.i18n.mark('Dirección del viento (°)'), value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.windDirectionDeg },
+    { header: PescaApp.i18n.mark('Nubosidad (%)'), value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.cloudCoverPercent },
+    { header: PescaApp.i18n.mark('Precipitación (mm)'), value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.precipitationMm },
+    { header: PescaApp.i18n.mark('Fase lunar'), value: (record) => record.conditions && record.conditions.moon && record.conditions.moon.name },
+    { header: PescaApp.i18n.mark('Altura de marea (m)'), value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.heightM },
+    { header: PescaApp.i18n.mark('Coeficiente de marea'), value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.coefficient },
+    { header: PescaApp.i18n.mark('Origen del coeficiente'), value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.coefficientSource },
+    { header: PescaApp.i18n.mark('Índice de actividad'), value: (record) => record.conditions && record.conditions.activity && record.conditions.activity.score },
+    { header: PescaApp.i18n.mark('Origen de las condiciones'), value: (record) => record.conditions && record.conditions.source },
   ];
 
   /** Lee todas las capturas guardadas. Devuelve una lista vacía si no hay datos válidos. */
@@ -64,7 +64,7 @@
     const utils = PescaApp.utils;
     const dateTime = utils.parseDateTimeString(input.dateTimeText);
     if (!dateTime) {
-      throw new Error('La fecha y la hora de la captura no son válidas.');
+      throw new Error(PescaApp.i18n.t('La fecha y la hora de la captura no son válidas.'));
     }
 
     const species = input.species || null;
@@ -91,7 +91,7 @@
       savedAt: new Date().toISOString(),
       dateTime: input.dateTimeText,
       speciesId: species ? species.id : null,
-      speciesName: species ? species.commonName : cleanText(input.speciesText) || 'Sin especificar',
+      speciesName: species ? species.commonName : cleanText(input.speciesText) || PescaApp.i18n.t('Sin especificar'),
       scientificName: species ? species.scientificName : null,
       zoneId: input.zoneId || null,
       place: input.place
@@ -149,7 +149,7 @@
 
   /** Exportación en CSV (separador ";", codificación UTF-8 con BOM para Excel). */
   function toCsv(list) {
-    const header = CSV_COLUMNS.map((column) => csvCell(column.header)).join(CSV_SEPARATOR);
+    const header = CSV_COLUMNS.map((column) => csvCell(PescaApp.i18n.t(column.header))).join(CSV_SEPARATOR);
     const rows = list.map((record) =>
       CSV_COLUMNS.map((column) => csvCell(column.value(record))).join(CSV_SEPARATOR)
     );
@@ -164,19 +164,19 @@
     const config = PescaApp.config.photo;
     return new Promise((resolve, reject) => {
       if (!file || !String(file.type || '').startsWith('image/')) {
-        reject(new Error('El archivo seleccionado no es una imagen.'));
+        reject(new Error(PescaApp.i18n.t('El archivo seleccionado no es una imagen.')));
         return;
       }
       if (file.size > config.maxInputBytes) {
-        reject(new Error('La imagen supera los 15 MB. Elige una más pequeña.'));
+        reject(new Error(PescaApp.i18n.t('La imagen supera los 15 MB. Elige una más pequeña.')));
         return;
       }
 
       const reader = new root.FileReader();
-      reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+      reader.onerror = () => reject(new Error(PescaApp.i18n.t('No se pudo leer la imagen.')));
       reader.onload = () => {
         const image = new root.Image();
-        image.onerror = () => reject(new Error('Formato de imagen no compatible.'));
+        image.onerror = () => reject(new Error(PescaApp.i18n.t('Formato de imagen no compatible.')));
         image.onload = () => {
           const scale = Math.min(1, config.maxSidePx / Math.max(image.width, image.height));
           const canvas = root.document.createElement('canvas');
