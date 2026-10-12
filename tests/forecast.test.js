@@ -102,20 +102,20 @@ test('waterValueAt busca la hora del dato dentro de la serie marina y devuelve n
   assert.equal(weather.waterValueAt(null, '2026-10-12T14:00'), null);
 });
 
-test('la previsión tiene 24 filas cada 3 horas desde la hora actual, aunque sea tarde', () => {
+test('la previsión tiene 72 filas, una por hora desde la hora actual, aunque sea tarde', () => {
   const forecast = syntheticForecast();
   const midday = hourlyForecast.buildForecastRows({ forecast, nowMs: Date.UTC(2026, 9, 12, 12, 30) });
-  assert.equal(midday.length, 24);
+  assert.equal(midday.length, 72);
   assert.equal(midday[0].hourText, '14:00', 'empieza en la hora que contiene la hora actual');
   assert.equal(midday[0].isCurrent, true);
   assert.equal(midday[1].isCurrent, false);
   midday.slice(1).forEach((row, index) => {
-    assert.equal(row.ts - midday[index].ts, 3 * HOUR_MS);
+    assert.equal(row.ts - midday[index].ts, HOUR_MS);
   });
-  assert.equal(midday[23].hourText, '11:00', '72 horas después, 15 de octubre a las 11:00');
+  assert.equal(midday[71].hourText, '13:00', '71 horas después, 15 de octubre a las 13:00');
 
   const lateEvening = hourlyForecast.buildForecastRows({ forecast, nowMs: Date.UTC(2026, 9, 12, 21, 10) });
-  assert.equal(lateEvening.length, 24, 'con 4 días de pronóstico siempre hay 72 horas');
+  assert.equal(lateEvening.length, 72, 'con 4 días de pronóstico siempre hay 72 horas');
   assert.equal(lateEvening[0].hourText, '23:00');
 });
 
@@ -218,7 +218,7 @@ test('con la predicción armónica, cada hora de las 72 h tiene marea y coeficie
       tideState,
       nowMs,
     });
-    assert.equal(rows.length, 24);
+    assert.equal(rows.length, 72);
     rows.forEach((row) => {
       assert.ok(row.tide !== null, `marea en ${row.dateKey} ${row.hourText}`);
       assert.ok(Number.isFinite(row.tide.heightM));

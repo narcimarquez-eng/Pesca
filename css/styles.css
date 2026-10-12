@@ -1065,19 +1065,29 @@ details > *:not(summary) {
 }
 
 .forecast-table {
-  min-width: 680px;
+  width: max-content;
+  min-width: 100%;
   font-size: 0.88rem;
+}
+
+.forecast-table th,
+.forecast-table td {
+  white-space: nowrap;
+}
+
+.forecast-day {
+  margin-top: 10px;
+}
+
+.forecast-day summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .forecast-table th[scope='row'] {
   white-space: nowrap;
   color: var(--text);
-  font-weight: 700;
-}
-
-.forecast-table .day-row th {
-  background: var(--sea-100);
-  color: var(--sea-900);
   font-weight: 700;
 }
 

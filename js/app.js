@@ -34,6 +34,8 @@
     forecast: null,
     forecastError: null,
     waterSeries: null,
+    ensemble: null,
+    ensembleError: null,
     tides: null,
     tidesError: null,
     pendingPhoto: null,
@@ -245,6 +247,9 @@
       state.forecast = null;
       state.forecastError = null;
       state.waterSeries = null;
+      state.ensemble = null;
+      state.ensembleError = null;
+      forecastOpenDays = null;
       state.tides = null;
       state.tidesError = null;
     }
@@ -389,18 +394,28 @@
     renderForecastCard();
   }
 
-  /** Pronóstico y temperatura del agua. El agua es opcional: si falla, solo falta ese dato. */
+  /**
+   * Pronóstico central, temperatura del agua y escenarios. El agua y los escenarios son
+   * opcionales: si fallan, la previsión central sigue mostrándose.
+   */
   async function loadForecast(place) {
     const requestId = ++forecastRequestId;
     renderLoading(dom.weatherBody, 'Consultando el tiempo…');
     state.forecastError = null;
+    const scenarioRequest = weather.getEnsemble(place.lat, place.lon).then(
+      (ensemble) => ({ ensemble, error: null }),
+      (error) => ({ ensemble: null, error: utils.describeError(error) })
+    );
     try {
-      const [forecast, waterSeries] = await Promise.all([
+      const [forecast, waterSeries, scenarios] = await Promise.all([
         weather.getForecast(place.lat, place.lon),
         weather.getWaterSeries(place.lat, place.lon),
+        scenarioRequest,
       ]);
       if (requestId !== forecastRequestId) return;
       state.waterSeries = waterSeries;
+      state.ensemble = scenarios.ensemble;
+      state.ensembleError = scenarios.error;
       state.forecast = {
         ...forecast,
         waterTemperatureC: weather.waterValueAt(waterSeries, forecast.observedAt),
@@ -409,6 +424,8 @@
       if (requestId !== forecastRequestId) return;
       state.forecast = null;
       state.waterSeries = null;
+      state.ensemble = null;
+      state.ensembleError = null;
       state.forecastError = utils.describeError(error);
     }
     renderWeatherCard();
@@ -549,6 +566,11 @@
       return;
     }
     const rating = computeCurrentRating();
+    const hourRow = state.forecast ? forecastRows(Date.now())[0] : null;
+    const scenarioLine =
+      hourRow && hourRow.scenarios && hourRow.scenarios.rating
+        ? `<p class="muted">En esta hora, ${scenarioStarsText(hourRow.scenarios.rating)}.</p>`
+        : '';
     const scoreText = rating.score === null ? '—' : String(rating.score);
     const adjusted = rating.baseScore !== null && rating.baseScore !== rating.score;
     const factorsHtml = rating.factors
@@ -575,6 +597,7 @@
         </div>
       </div>
       <p>${utils.escapeHtml(rating.summary)}</p>
+      ${scenarioLine}
       <ul class="factor-list">${factorsHtml}</ul>
       <p class="fineprint">Valoración orientativa a partir de presión, luna, viento y marea. No garantiza capturas ni sustituye a los avisos oficiales.</p>`;
   }
@@ -589,9 +612,62 @@
     stable: { arrow: '→', text: 'estable' },
   };
 
+  /** Filas de la previsión. Se recalculan al cambiar la hora o los datos, no en cada minuto. */
+  let forecastRowsMemo = null;
+
+  /** Días de la previsión que están desplegados (null hasta la primera pintura). */
+  let forecastOpenDays = null;
+
+  function forecastRows(nowMs) {
+    const hourKey = Math.floor(nowMs / utils.HOUR_MS);
+    const memo = forecastRowsMemo;
+    if (
+      memo &&
+      memo.hourKey === hourKey &&
+      memo.forecast === state.forecast &&
+      memo.ensemble === state.ensemble &&
+      memo.waterSeries === state.waterSeries &&
+      memo.tides === state.tides
+    ) {
+      return memo.rows;
+    }
+    const rows = hourlyForecast.buildForecastRows({
+      forecast: state.forecast,
+      ensemble: state.ensemble,
+      waterSeries: state.waterSeries,
+      tideState: state.tides,
+      nowMs,
+    });
+    forecastRowsMemo = {
+      hourKey,
+      forecast: state.forecast,
+      ensemble: state.ensemble,
+      waterSeries: state.waterSeries,
+      tides: state.tides,
+      rows,
+    };
+    return rows;
+  }
+
   /** Número con su unidad unida por un espacio que no se parte. Sin dato, "—". */
   function withUnit(value, decimals, unit) {
     return Number.isFinite(value) ? `${utils.formatNumber(value, decimals)} ${unit}` : '—';
+  }
+
+  /** Margen entre escenarios, como "12–17 °C". Vacío si no hay margen o si es un solo valor. */
+  function marginText(margin, decimals, unit = '') {
+    if (!margin || !Number.isFinite(margin.low) || !Number.isFinite(margin.high)) return '';
+    const low = utils.formatNumber(margin.low, decimals);
+    const high = utils.formatNumber(margin.high, decimals);
+    if (low === high) return '';
+    return `${low}–${high}${unit ? ` ${unit}` : ''}`;
+  }
+
+  /** Estrellas de los escenarios, en forma corta: "escenarios: 4–5 ★". */
+  function scenarioStarsText(rating) {
+    if (!rating) return '';
+    if (rating.low === rating.high) return `escenarios: ${rating.low} ★`;
+    return `escenarios: ${rating.low}–${rating.high} ★`;
   }
 
   /** Día de la previsión en castellano. "long" para cabeceras, "short" para la lista de mejores horas. */
@@ -603,8 +679,9 @@
     return new Date(`${dateKey}T12:00:00Z`).toLocaleDateString('es-ES', options);
   }
 
-  /** Una fila de la tabla: hora local del lugar, tiempo, viento, presión, lluvia, marea y pesca. */
+  /** Una fila de la tabla: el valor central y, debajo, el margen entre escenarios. */
   function forecastRowHtml(row) {
+    const { scenarios } = row;
     const trend = row.pressureTrend3hHpa;
     const pressureNote = Number.isFinite(trend)
       ? `<span class="fc-note">${trend > 0 ? '▲' : trend < 0 ? '▼' : '➖'} ${formatSigned(trend, 1, 'hPa')} en 3 h</span>`
@@ -612,22 +689,32 @@
     const tideHtml = row.tide
       ? `<strong>${withUnit(row.tide.heightM, 2, 'm')}</strong> <span aria-label="${TIDE_TRENDS[row.tide.trend].text}">${TIDE_TRENDS[row.tide.trend].arrow}</span>`
       : '<span class="muted">—</span>';
-    const approximate = row.coefficientSource === hourlyForecast.COEFFICIENT_SOURCE_MOON ? ' <span class="fc-note">aprox.</span>' : '';
+    const approximate =
+      row.coefficientSource === hourlyForecast.COEFFICIENT_SOURCE_MOON ? ' <span class="fc-note">aprox.</span>' : '';
     const waterNote = Number.isFinite(row.waterTemperatureC)
       ? `<span class="fc-note">agua ${withUnit(row.waterTemperatureC, 1, '°C')}</span>`
       : '';
+    const tempMargin = scenarios ? marginText(scenarios.temperatureC, 1, '°C') : '';
+    const windMargin = scenarios ? marginText(scenarios.windSpeedKmh, 0, 'km/h') : '';
+    const gustMargin = scenarios ? marginText(scenarios.windGustsKmh, 0) : '';
+    const rainNote =
+      scenarios && scenarios.rainChancePercent !== null
+        ? `<span class="fc-note">${scenarios.rainChancePercent} % de escenarios</span>`
+        : '';
+    const ratingNote = scenarios ? scenarioStarsText(scenarios.rating) : '';
+    const direction = Number.isFinite(row.windDirectionDeg) ? utils.cardinalDirection(row.windDirectionDeg) : '—';
     const score = row.rating.score === null ? '—' : row.rating.score;
 
     return `
       <tr${row.isCurrent ? ' class="is-now"' : ''}>
         <th scope="row">${row.hourText}${row.isCurrent ? ' <span class="fc-note">ahora</span>' : ''}</th>
         <td><span aria-hidden="true">${row.weather.icon}</span> ${utils.escapeHtml(row.weather.label)}</td>
-        <td>${withUnit(row.airTemperatureC, 1, '°C')}${waterNote}</td>
-        <td>${withUnit(row.windSpeedKmh, 0, 'km/h')}<span class="fc-note">${Number.isFinite(row.windDirectionDeg) ? utils.cardinalDirection(row.windDirectionDeg) : '—'} · ráfagas ${withUnit(row.windGustsKmh, 0, 'km/h')}</span></td>
+        <td>${withUnit(row.airTemperatureC, 1, '°C')}${tempMargin ? `<span class="fc-note">${tempMargin}</span>` : ''}${waterNote}</td>
+        <td>${withUnit(row.windSpeedKmh, 0, 'km/h')}<span class="fc-note">${windMargin ? `${windMargin} · ` : ''}${direction}</span><span class="fc-note">ráfagas ${withUnit(row.windGustsKmh, 0, 'km/h')}${gustMargin ? ` (${gustMargin})` : ''}</span></td>
         <td>${withUnit(row.pressureHpa, 0, 'hPa')}${pressureNote}</td>
-        <td>${withUnit(row.precipitationMm, 1, 'mm')}</td>
+        <td>${withUnit(row.precipitationMm, 1, 'mm')}${rainNote}</td>
         <td>${tideHtml}<br>${coefficientChip(row.coefficient)}${approximate}</td>
-        <td>${starsHtml(row.rating.stars)}<span class="fc-note">${score}/100 · ${utils.escapeHtml(row.rating.label)}</span></td>
+        <td>${starsHtml(row.rating.stars)}<span class="fc-note">${score}/100 · ${utils.escapeHtml(row.rating.label)}</span>${ratingNote ? `<span class="fc-note">${ratingNote}</span>` : ''}</td>
       </tr>`;
   }
 
@@ -637,13 +724,14 @@
       return `<p class="muted">Ninguna hora de las próximas ${hourlyForecast.DEFAULT_HOURS} h llega a ${hourlyForecast.BEST_MOMENTS_MIN_STARS} estrellas.</p>`;
     }
     const items = best
-      .map(
-        (row) => `
+      .map((row) => {
+        const ratingNote = row.scenarios ? scenarioStarsText(row.scenarios.rating) : '';
+        return `
           <li>
             <strong>${formatForecastDay(row.dateKey, 'short')} · ${row.hourText}</strong>
-            ${starsHtml(row.rating.stars)} <span class="muted">${row.rating.score}/100 · ${utils.escapeHtml(row.rating.label)}</span>
-          </li>`
-      )
+            ${starsHtml(row.rating.stars)} <span class="muted">${row.rating.score}/100 · ${utils.escapeHtml(row.rating.label)}${ratingNote ? ` · ${ratingNote}` : ''}</span>
+          </li>`;
+      })
       .join('');
     return `
       <div class="best-moments">
@@ -652,7 +740,38 @@
       </div>`;
   }
 
-  /** Tarjeta de previsión: tabla de una fila cada 3 horas durante 72 horas, con los mejores momentos. */
+  /** Un día de la previsión, desplegable: su mejor hora y su tabla de horas. */
+  function forecastDayHtml(day, open) {
+    const best = day.rows.reduce(
+      (top, row) =>
+        row.rating.score !== null && (top === null || row.rating.score > top.rating.score) ? row : top,
+      null
+    );
+    const bestText = best ? `mejor hora ${best.hourText}, ${best.rating.stars} ★` : 'sin valoración';
+    return `
+      <details class="forecast-day" data-day="${day.dateKey}"${open ? ' open' : ''}>
+        <summary>${utils.escapeHtml(formatForecastDay(day.dateKey))} <span class="muted">· ${bestText}</span></summary>
+        <div class="table-wrap">
+          <table class="forecast-table">
+            <thead>
+              <tr>
+                <th scope="col">Hora</th>
+                <th scope="col">Tiempo</th>
+                <th scope="col">Temp.</th>
+                <th scope="col">Viento</th>
+                <th scope="col">Presión</th>
+                <th scope="col">Lluvia</th>
+                <th scope="col">Marea</th>
+                <th scope="col">Pesca</th>
+              </tr>
+            </thead>
+            <tbody>${day.rows.map((row) => forecastRowHtml(row)).join('')}</tbody>
+          </table>
+        </div>
+      </details>`;
+  }
+
+  /** Tarjeta de previsión: una fila por hora durante 72 horas, agrupada en días desplegables. */
   function renderForecastCard() {
     if (!state.place) {
       dom.forecastBody.innerHTML = '<p class="muted">Define una ubicación para ver la previsión por horas.</p>';
@@ -667,55 +786,37 @@
       return;
     }
 
-    const rows = hourlyForecast.buildForecastRows({
-      forecast: state.forecast,
-      waterSeries: state.waterSeries,
-      tideState: state.tides,
-      nowMs: Date.now(),
-    });
+    const rows = forecastRows(Date.now());
     if (!rows.length) {
       dom.forecastBody.innerHTML = renderAlert('La previsión no incluye la hora actual.', 'info');
       return;
     }
 
-    let previousDay = null;
-    const bodyHtml = rows
-      .map((row) => {
-        const dayHeader =
-          row.dateKey === previousDay
-            ? ''
-            : `<tr class="day-row"><th colspan="8" scope="colgroup">${utils.escapeHtml(formatForecastDay(row.dateKey))}</th></tr>`;
-        previousDay = row.dateKey;
-        return dayHeader + forecastRowHtml(row);
-      })
-      .join('');
+    const days = [];
+    rows.forEach((row) => {
+      const last = days[days.length - 1];
+      if (last && last.dateKey === row.dateKey) last.rows.push(row);
+      else days.push({ dateKey: row.dateKey, rows: [row] });
+    });
+    // Primera pintura: en pantallas anchas se abren todos los días; en el móvil, solo el primero.
+    if (forecastOpenDays === null) {
+      const wide = root.matchMedia ? root.matchMedia('(min-width: 900px)').matches : false;
+      forecastOpenDays = new Set(wide ? days.map((day) => day.dateKey) : [days[0].dateKey]);
+    }
 
     const tideNote = !state.tides
       ? 'Sin datos de marea: la valoración usa tiempo y luna.'
       : state.tides.method === tides.SOURCE_HARMONIC
         ? 'Marea: predicción armónica de la estación.'
         : 'Marea: alturas de WorldTides, solo para las próximas 33 h.';
+    const scenarioNote = state.ensemble
+      ? `Margen: entre el percentil 10 y el 90 de los ${state.ensemble.members.length} escenarios del modelo ECMWF IFS (cada escenario es un miembro del conjunto), siempre con el valor central incluido.`
+      : `Sin escenarios${state.ensembleError ? ` (${utils.escapeHtml(state.ensembleError)})` : ''}: solo se muestra la previsión central.`;
 
     dom.forecastBody.innerHTML = `
       ${bestMomentsHtml(hourlyForecast.pickBestMoments(rows))}
-      <div class="table-wrap">
-        <table class="forecast-table">
-          <thead>
-            <tr>
-              <th scope="col">Hora</th>
-              <th scope="col">Tiempo</th>
-              <th scope="col">Temp.</th>
-              <th scope="col">Viento</th>
-              <th scope="col">Presión</th>
-              <th scope="col">Lluvia</th>
-              <th scope="col">Marea</th>
-              <th scope="col">Pesca</th>
-            </tr>
-          </thead>
-          <tbody>${bodyHtml}</tbody>
-        </table>
-      </div>
-      <p class="fineprint">Previsión de Open-Meteo, una fila cada 3 horas, en la hora local del lugar. ${utils.escapeHtml(tideNote)} El coeficiente es el del día de la estación o, sin tabla, una estimación por fase lunar (aprox.). La valoración es orientativa: las horas con tormenta, lluvia intensa o viento fuerte se limitan por seguridad. Consulta los avisos oficiales antes de salir.</p>`;
+      ${days.map((day) => forecastDayHtml(day, forecastOpenDays.has(day.dateKey))).join('')}
+      <p class="fineprint">Valor central: previsión de Open-Meteo, una fila por hora, en la hora local del lugar. ${scenarioNote} «% de escenarios» es la parte de escenarios con al menos 0,1 mm de lluvia en esa hora. ${utils.escapeHtml(tideNote)} La valoración es orientativa: las horas con tormenta, lluvia intensa o viento fuerte se limitan por seguridad. Consulta los avisos oficiales antes de salir.</p>`;
   }
 
   /** Estilo del coeficiente según su valor: vivas, media o muertas. */
@@ -1408,6 +1509,17 @@
 
     dom.gpsButton.addEventListener('click', () => requestGps({ silent: false }));
     dom.refreshButton.addEventListener('click', () => refreshLiveData());
+    // 'toggle' no burbujea; la captura lo recibe desde el contenedor de la tarjeta.
+    dom.forecastBody.addEventListener(
+      'toggle',
+      (event) => {
+        const day = event.target;
+        if (!forecastOpenDays || !day.classList || !day.classList.contains('forecast-day')) return;
+        if (day.open) forecastOpenDays.add(day.dataset.day);
+        else forecastOpenDays.delete(day.dataset.day);
+      },
+      true
+    );
     dom.locationForm.addEventListener('submit', handleLocationSearch);
     dom.locationResults.addEventListener('click', (event) => {
       const button = event.target.closest('[data-result-index]');

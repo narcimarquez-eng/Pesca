@@ -75,6 +75,22 @@
     return table[table.length - 1][1];
   }
 
+  /**
+   * Cuantil `p` (de 0 a 1) de una lista de números, con interpolación lineal entre valores
+   * (método R-7). Ignora lo que no sea número. Devuelve null si no queda ningún valor.
+   */
+  function quantile(values, p) {
+    const sorted = values
+      .map((value) => toFiniteNumber(value))
+      .filter((value) => value !== null)
+      .sort((a, b) => a - b);
+    if (!sorted.length) return null;
+    const position = clamp(p, 0, 1) * (sorted.length - 1);
+    const lower = Math.floor(position);
+    const upper = Math.ceil(position);
+    return sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+  }
+
   /** Distancia en kilómetros entre dos coordenadas (fórmula de Haversine). */
   function distanceKm(lat1, lon1, lat2, lon2) {
     const earthRadiusKm = 6371;
@@ -344,6 +360,7 @@
     round,
     positiveModulo,
     interpolateTable,
+    quantile,
     distanceKm,
     cardinalDirection,
     kmhToKnots,

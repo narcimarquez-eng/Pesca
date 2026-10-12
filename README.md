@@ -26,7 +26,7 @@ Al cargar, la app pide tu ubicación. También puedes escribir un lugar (ciudad,
 - **Clima actual:** temperatura del aire y del agua, viento (km/h y nudos, con dirección), presión con su tendencia de 3 h, humedad, nubosidad, precipitación, amanecer y atardecer.
 - **Luna:** fase, iluminación y próxima luna llena o nueva (cálculo propio, sin API).
 - **Condiciones de pesca (1–5 estrellas):** valoración a partir de presión, luna, viento y marea, con límites de seguridad por tormenta, lluvia y viento fuerte. Muestra el índice de 0 a 100 y explica cada factor y cada ajuste.
-- **Previsión por horas:** tabla de 72 horas, una fila cada 3 horas desde la hora actual: tiempo, temperatura del aire y del agua, viento y rachas, presión con su tendencia, lluvia, altura de marea con su sentido, coeficiente y valoración. Destaca los tres mejores momentos.
+- **Previsión por horas:** tabla de 72 horas, una fila por hora, agrupada en días desplegables. Cada hora muestra el valor central de Open-Meteo y, debajo, el margen entre escenarios (51 miembros del modelo de conjunto ECMWF IFS), además de la probabilidad de lluvia, la altura de marea con su sentido, el coeficiente y la valoración. Destaca los tres mejores momentos.
 - **Mareas:** altura actual, próximas pleamar y bajamar, gráfica de 24 horas, **coeficiente de marea de hoy** y una **tabla de los próximos 7 días** con el coeficiente, las pleamares y las bajamares de cada día. Por defecto usa la **predicción armónica de la estación de marea más cercana**, sin registro ni clave. Como opción, puedes usar WorldTides con una clave gratuita. Se muestra la estación usada, su distancia y su licencia.
 - **Especies de la zona:** 17 especies con ficha completa: tallas mínimas por zona, pesos, hábitat, periodos de mayor actividad, cebos, técnicas, restricciones y fuentes.
 - **Registro de capturas:** fecha y hora editables, especie con autocompletado, peso, longitud, cebo, técnica, notas y foto. Las capturas pasadas guardan las condiciones de ese momento: datos históricos de Open-Meteo y marea predicha para esa fecha.
@@ -46,7 +46,9 @@ Si la estación más cercana está a más de 60 km (por ejemplo, en el interior)
 
 ## Previsión y valoración: cómo se calculan
 
-La previsión usa la serie horaria de Open-Meteo: cuatro días (hoy y los tres siguientes), más el día anterior para la tendencia de presión. La tabla muestra una fila cada 3 horas desde la hora actual, durante 72 horas, en la hora local del lugar.
+La previsión central usa la serie horaria de Open-Meteo: cuatro días (hoy y los tres siguientes), más el día anterior para la tendencia de presión. La tabla muestra una fila por hora desde la hora actual, durante 72 horas, en la hora local del lugar.
+
+**Escenarios.** Cada miembro del modelo de conjunto ECMWF IFS (51) es un escenario posible. Para cada hora, el margen de temperatura, viento y rachas va del percentil 10 al 90 de los escenarios, y siempre incluye el valor central. La probabilidad de lluvia es el porcentaje de escenarios con al menos 0,1 mm en esa hora. La valoración también tiene margen: cada escenario se valora con su propio viento, lluvia y presión, mientras que el código de tiempo, la luna y la marea son los de la previsión central. Los escenarios se guardan solo en la memoria de la página, porque pesan demasiado para localStorage.
 
 Para cada hora se calcula el índice de actividad (0–100) con estos pesos:
 
@@ -171,10 +173,10 @@ js/data/tides/          Teselas de constantes armónicas y manifiesto (generados
 js/vendor/              Predictor armónico empaquetado (MIT)
 js/species.js           Búsqueda de especies y asignación de zona
 js/location.js          GPS, búsqueda de lugares y Nominatim
-js/weather.js           Open-Meteo: clima, temperatura del agua e histórico
+js/weather.js           Open-Meteo: previsión central, escenarios, temperatura del agua e histórico
 js/tides.js             Mareas: predicción armónica por estación, WorldTides opcional y coeficiente
 js/activity.js          Índice de actividad (0–100), valoración de 1 a 5 estrellas y ajustes de seguridad
-js/forecast.js          Previsión por horas: filas cada 3 h, marea y mejores momentos
+js/forecast.js          Previsión por horas: filas cada hora, márgenes de escenarios y mejores momentos
 js/validation.js        Talla mínima, vedas, protección y peso estimado
 js/catches.js           Registro de capturas, exportación y reducción de fotos
 js/app.js               Controlador de la interfaz
@@ -190,7 +192,7 @@ Los archivos se cargan con `<script>` clásicos, en orden, sin módulos ES. Así
 npm test
 ```
 
-Ejecuta 96 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (incluida su correlación con la fase lunar), mareas (predicción armónica y WorldTides), zonas horarias de las estaciones, selección de estación, predicción de A Coruña, integridad de todas las teselas, parseo de respuestas, índice de actividad, valoración de pesca, previsión por horas, validación de tallas y vedas, catálogo, zonas y exportación CSV/JSON.
+Ejecuta 105 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (incluida su correlación con la fase lunar), mareas (predicción armónica y WorldTides), zonas horarias de las estaciones, selección de estación, predicción de A Coruña, integridad de todas las teselas, parseo de respuestas, índice de actividad, valoración de pesca, previsión por horas, escenarios y percentiles, validación de tallas y vedas, catálogo, zonas y exportación CSV/JSON.
 
 ## Limitaciones conocidas
 
@@ -198,6 +200,7 @@ Ejecuta 96 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (incl
 - **Tallas y vedas:** son referencias orientativas. La talla de pesca recreativa depende de la comunidad autónoma. Varias especies no tienen talla confirmada y ninguna tiene vedas registradas todavía.
 - **Coeficiente de marea:** con la predicción armónica es una estimación de la amplitud del día frente a la media del año de la estación. Puede diferir del coeficiente oficial de las tablas. Si usas WorldTides, el coeficiente cae a una estimación por fase lunar.
 - **Luna:** cálculo de luna media (error de unas horas). Para horas exactas de salida y puesta de la Luna, usa un cálculo astronómico completo.
+- **Escenarios:** el margen indica cuánto puede variar la previsión según el modelo de conjunto; no es una probabilidad calibrada. Si Open-Meteo cambia el formato de las variables de cada miembro, la tabla sigue mostrando solo la previsión central y lo indica.
 - **Valoración de pesca:** es una heurística y no garantiza capturas. Sus pesos y límites no están calibrados con datos de capturas. La previsión pierde precisión con los días: las horas más lejanas son orientativas.
 - **Pesos estimados:** el error habitual es de ±30 %.
 - **Zonas de especies:** el catálogo cubre sobre todo la costa española y tiene pocas especies en Canarias. El agua dulce y el interior no están incluidos.

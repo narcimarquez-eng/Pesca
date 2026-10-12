@@ -171,41 +171,10 @@
    * @returns {{score: number|null, level: string, factors: object[], missing: string[], summary: string}}
    */
   function computeActivityIndex(input = {}) {
-    const definitions = [
-      {
-        key: 'pressure',
-        label: 'Presión atmosférica',
-        weight: WEIGHTS.pressure,
-        score: scorePressure(input.pressureHpa, input.pressureTrend3hHpa),
-        explanation: Number.isFinite(input.pressureHpa)
-          ? explainPressure(input.pressureHpa, input.pressureTrend3hHpa)
-          : '',
-      },
-      {
-        key: 'moon',
-        label: 'Fase lunar',
-        weight: WEIGHTS.moon,
-        score: scoreMoon(input.moonDistanceToSyzygy),
-        explanation: Number.isFinite(input.moonDistanceToSyzygy) ? explainMoon(input.moonDistanceToSyzygy) : '',
-      },
-      {
-        key: 'wind',
-        label: 'Viento',
-        weight: WEIGHTS.wind,
-        score: scoreWind(input.windSpeedKmh),
-        explanation: Number.isFinite(input.windSpeedKmh) ? explainWind(input.windSpeedKmh) : '',
-      },
-      {
-        key: 'tide',
-        label: 'Marea',
-        weight: WEIGHTS.tide,
-        score: scoreTide(input.hoursFromTideExtreme, input.tideCoefficient),
-        explanation: Number.isFinite(input.hoursFromTideExtreme)
-          ? explainTide(input.hoursFromTideExtreme, input.tideCoefficient)
-          : '',
-      },
-    ];
-
+    const definitions = scoreFactors(input).map((item) => ({
+      ...item,
+      explanation: explainFactor(item.key, input),
+    }));
     const available = definitions.filter((item) => item.score !== null);
     const missing = definitions.filter((item) => item.score === null).map((item) => item.label);
 
@@ -219,10 +188,7 @@
       };
     }
 
-    const totalWeight = available.reduce((sum, item) => sum + item.weight, 0);
-    const weightedScore =
-      available.reduce((sum, item) => sum + item.weight * clamp01(item.score), 0) / totalWeight;
-    const score = Math.round(weightedScore * 100);
+    const { score, totalWeight } = weightedScoreOf(available);
 
     const factors = available.map((item) => {
       const factorScore = Math.round(clamp01(item.score) * 100);
@@ -243,6 +209,52 @@
       missing,
       summary: buildSummary(factors, score, missing),
     };
+  }
+
+  /**
+   * Factores con su puntuación 0–1 (null si falta el dato), sin textos. Es el cálculo que
+   * comparten computeActivityIndex y fishingScore, para que no puedan separarse.
+   */
+  function scoreFactors(input) {
+    return [
+      {
+        key: 'pressure',
+        label: 'Presión atmosférica',
+        weight: WEIGHTS.pressure,
+        score: scorePressure(input.pressureHpa, input.pressureTrend3hHpa),
+      },
+      { key: 'moon', label: 'Fase lunar', weight: WEIGHTS.moon, score: scoreMoon(input.moonDistanceToSyzygy) },
+      { key: 'wind', label: 'Viento', weight: WEIGHTS.wind, score: scoreWind(input.windSpeedKmh) },
+      {
+        key: 'tide',
+        label: 'Marea',
+        weight: WEIGHTS.tide,
+        score: scoreTide(input.hoursFromTideExtreme, input.tideCoefficient),
+      },
+    ];
+  }
+
+  /** Explicación en castellano de un factor, o '' si falta su dato. */
+  function explainFactor(key, input) {
+    if (key === 'pressure') {
+      return Number.isFinite(input.pressureHpa) ? explainPressure(input.pressureHpa, input.pressureTrend3hHpa) : '';
+    }
+    if (key === 'moon') {
+      return Number.isFinite(input.moonDistanceToSyzygy) ? explainMoon(input.moonDistanceToSyzygy) : '';
+    }
+    if (key === 'wind') {
+      return Number.isFinite(input.windSpeedKmh) ? explainWind(input.windSpeedKmh) : '';
+    }
+    return Number.isFinite(input.hoursFromTideExtreme)
+      ? explainTide(input.hoursFromTideExtreme, input.tideCoefficient)
+      : '';
+  }
+
+  /** Puntuación 0–100 ponderada de los factores disponibles, con el peso total que se ha usado. */
+  function weightedScoreOf(available) {
+    const totalWeight = available.reduce((sum, item) => sum + item.weight, 0);
+    const weightedScore = available.reduce((sum, item) => sum + item.weight * clamp01(item.score), 0) / totalWeight;
+    return { score: Math.round(weightedScore * 100), totalWeight };
   }
 
   /** Códigos WMO de tormenta: se limita la valoración aunque el resto de factores sean buenos. */
@@ -290,6 +302,15 @@
     return adjustments;
   }
 
+  /** Aplica los límites de seguridad a una puntuación base. Devuelve la final y los ajustes usados. */
+  function applyAdjustments(baseScore, input) {
+    const adjustments = collectAdjustments(input);
+    const penalty = adjustments.reduce((sum, item) => sum + (item.penalty || 0), 0);
+    const caps = adjustments.filter((item) => item.cap !== undefined).map((item) => item.cap);
+    const score = Math.round(Math.max(0, Math.min(baseScore - penalty, 100, ...caps)));
+    return { score, adjustments };
+  }
+
   /**
    * Frase para la tarjeta: los ajustes de seguridad aplicados (o su ausencia) y los datos
    * que faltan. No repite la etiqueta ni la puntuación, que la tarjeta ya muestra.
@@ -335,10 +356,7 @@
       };
     }
 
-    const adjustments = collectAdjustments(input);
-    const penalty = adjustments.reduce((sum, item) => sum + (item.penalty || 0), 0);
-    const caps = adjustments.filter((item) => item.cap !== undefined).map((item) => item.cap);
-    const score = Math.round(Math.max(0, Math.min(index.score - penalty, 100, ...caps)));
+    const { score, adjustments } = applyAdjustments(index.score, input);
     const { stars, label } = ratingFor(score);
 
     const rating = {
@@ -357,6 +375,16 @@
     return { ...rating, summary: buildRatingSummary(rating) };
   }
 
+  /**
+   * Solo la puntuación final (0–100, con los límites de seguridad), sin explicaciones.
+   * Hace el mismo cálculo que computeFishingRating; sirve para muchos escenarios a la vez.
+   */
+  function fishingScore(input = {}) {
+    const available = scoreFactors(input).filter((item) => item.score !== null);
+    if (!available.length) return null;
+    return applyAdjustments(weightedScoreOf(available).score, input).score;
+  }
+
   PescaApp.activity = Object.freeze({
     WEIGHTS,
     LEVELS,
@@ -371,5 +399,6 @@
     ratingFor,
     buildRatingSummary,
     computeFishingRating,
+    fishingScore,
   });
 })(typeof window !== 'undefined' ? window : globalThis);

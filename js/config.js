@@ -25,6 +25,7 @@
      */
     endpoints: Object.freeze({
       forecast: 'https://api.open-meteo.com/v1/forecast',
+      ensemble: 'https://ensemble-api.open-meteo.com/v1/ensemble',
       marine: 'https://marine-api.open-meteo.com/v1/marine',
       archive: 'https://archive-api.open-meteo.com/v1/archive',
       nominatimReverse: 'https://nominatim.openstreetmap.org/reverse',

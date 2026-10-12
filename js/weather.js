@@ -69,6 +69,31 @@
   /** Versión de la caché del pronóstico: cambiarla invalida las entradas antiguas. */
   const FORECAST_CACHE_VERSION = 'v2';
 
+  const HOUR_MS = PescaApp.utils.HOUR_MS;
+
+  /**
+   * Escenarios: modelo de conjunto ECMWF IFS, con 51 miembros. Cada miembro es una
+   * evolución posible del tiempo; el margen de la previsión sale de ellos.
+   */
+  const ENSEMBLE_MODEL = 'ecmwf_ifs025';
+
+  /** Variables de cada escenario y el campo con el que se trabaja en el código. */
+  const ENSEMBLE_FIELDS = Object.freeze([
+    ['temperature_2m', 'temperatureC'],
+    ['precipitation', 'precipitationMm'],
+    ['wind_speed_10m', 'windSpeedKmh'],
+    ['wind_gusts_10m', 'windGustsKmh'],
+    ['pressure_msl', 'pressureHpa'],
+  ]);
+
+  const ENSEMBLE_VARIABLES = ENSEMBLE_FIELDS.map(([name]) => name);
+
+  /**
+   * Escenarios en memoria, por ubicación. No se guardan en localStorage: cada respuesta
+   * pesa cientos de kilobytes y el espacio del navegador es limitado.
+   */
+  const ensembleMemory = new Map();
+
   /** Códigos WMO de tiempo: [códigos, descripción, icono]. */
   const WEATHER_CODES = [
     [[0], 'Despejado', '☀️'],
@@ -259,6 +284,105 @@
     return waterValueAt(extractWaterSeries(json), observedAt);
   }
 
+  /** URL de los escenarios: cada miembro del modelo de conjunto, por hora. */
+  function buildEnsembleUrl(lat, lon) {
+    return PescaApp.utils.buildUrl(PescaApp.config.endpoints.ensemble, {
+      latitude: lat.toFixed(4),
+      longitude: lon.toFixed(4),
+      hourly: ENSEMBLE_VARIABLES,
+      models: ENSEMBLE_MODEL,
+      timezone: 'auto',
+      forecast_days: FORECAST_DAYS,
+    });
+  }
+
+  /**
+   * Valores de una serie llevada a una rejilla de una hora. Si el modelo entrega pasos de
+   * 3 horas, las horas intermedias se interpolan. Donde no hay dato, null.
+   */
+  function resampleHourly(sourceMs, values, gridMs) {
+    const utils = PescaApp.utils;
+    const points = sourceMs
+      .map((ms, index) => ({ ms, value: utils.toFiniteNumber(values[index]) }))
+      .filter((point) => Number.isFinite(point.ms))
+      .sort((a, b) => a.ms - b.ms);
+    let cursor = 0;
+    return gridMs.map((ms) => {
+      while (cursor < points.length - 1 && points[cursor + 1].ms <= ms) cursor += 1;
+      const before = points[cursor];
+      if (!before || before.ms > ms) return null;
+      if (before.ms === ms) return before.value;
+      const after = points[cursor + 1];
+      if (!after || before.value === null || after.value === null) return null;
+      const fraction = (ms - before.ms) / (after.ms - before.ms);
+      return before.value + (after.value - before.value) * fraction;
+    });
+  }
+
+  /**
+   * Convierte la respuesta del modelo de conjunto en escenarios. Cada clave es el control
+   * ("temperature_2m") o un miembro ("temperature_2m_member01"), y se agrupan por su sufijo.
+   * Devuelve las horas en una rejilla de una hora y `members`, con una serie por variable
+   * en cada escenario. Lanza error si la respuesta no trae escenarios.
+   */
+  function normalizeEnsemble(json) {
+    const hourly = json && json.hourly;
+    if (!hourly || !Array.isArray(hourly.time) || !hourly.time.length) {
+      throw new Error('El modelo de escenarios no devolvió horas.');
+    }
+    const sourceMs = hourly.time.map((text) => localTimeToMs(text, 0));
+    const validMs = sourceMs.filter((ms) => ms !== null);
+    if (!validMs.length) throw new Error('Las horas del modelo de escenarios no son válidas.');
+
+    const gridMs = [];
+    for (let ms = Math.min(...validMs); ms <= Math.max(...validMs); ms += HOUR_MS) gridMs.push(ms);
+    const times = gridMs.map((ms) => new Date(ms).toISOString().slice(0, 16));
+
+    const scenarios = new Map();
+    ENSEMBLE_FIELDS.forEach(([name, field]) => {
+      Object.keys(hourly).forEach((key) => {
+        if (key !== name && !key.startsWith(`${name}_`)) return;
+        const id = key.slice(name.length);
+        if (!scenarios.has(id)) scenarios.set(id, {});
+        scenarios.get(id)[field] = resampleHourly(sourceMs, hourly[key], gridMs);
+      });
+    });
+
+    const members = [...scenarios.values()]
+      .filter((scenario) => ENSEMBLE_FIELDS.some(([, field]) => Array.isArray(scenario[field])))
+      .map((scenario) => {
+        const member = {};
+        ENSEMBLE_FIELDS.forEach(([, field]) => {
+          member[field] = scenario[field] || gridMs.map(() => null);
+        });
+        return member;
+      });
+    if (!members.length) throw new Error('El modelo de escenarios no devolvió escenarios.');
+
+    return {
+      times,
+      utcOffsetSeconds: PescaApp.utils.toFiniteNumber(json.utc_offset_seconds),
+      timezone: json.timezone || null,
+      members,
+    };
+  }
+
+  /**
+   * Escenarios de una ubicación. Se reutilizan en memoria durante 15 minutos. Si el
+   * servicio falla, lanza el error y la previsión central sigue mostrándose.
+   */
+  async function getEnsemble(lat, lon) {
+    const utils = PescaApp.utils;
+    const key = `${roundCoordinate(lat)},${roundCoordinate(lon)}`;
+    const cached = ensembleMemory.get(key);
+    if (cached && Date.now() - cached.savedAt <= PescaApp.config.cacheMs.forecast) return cached.value;
+
+    const json = await utils.fetchJson(buildEnsembleUrl(lat, lon));
+    const value = normalizeEnsemble(json);
+    ensembleMemory.set(key, { savedAt: Date.now(), value });
+    return value;
+  }
+
   /** Previsión y estado actual para una ubicación. Usa caché de 15 minutos. */
   async function getForecast(lat, lon) {
     const utils = PescaApp.utils;
@@ -389,6 +513,11 @@
     describeWeatherCode,
     buildForecastUrl,
     buildMarineUrl,
+    ENSEMBLE_MODEL,
+    ENSEMBLE_VARIABLES,
+    buildEnsembleUrl,
+    normalizeEnsemble,
+    getEnsemble,
     buildHistoryRequest,
     normalizeForecast,
     extractWaterSeries,
