@@ -32,6 +32,7 @@ Al cargar, la app pide tu ubicación. También puedes escribir un lugar (ciudad,
 - **Registro de capturas:** fecha y hora editables, especie con autocompletado, peso, longitud, cebo, técnica, notas y foto. Las capturas pasadas guardan las condiciones de ese momento: datos históricos de Open-Meteo y marea predicha para esa fecha.
 - **Validación:** en rojo si la captura está por debajo de la talla mínima de referencia o en veda o protección. Si solo hay longitud, estima el peso con W = a · L^b.
 - **Exportación:** JSON (incluye fotos) y CSV (separador `;`, compatible con Excel en español).
+- **Idiomas:** la interfaz en 18 idiomas, con selección automática por país y formato de números y fechas por idioma. Ver «Idiomas y países».
 
 ## Mareas: cómo funciona
 
@@ -73,6 +74,47 @@ Las estrellas salen de la puntuación final: 5 desde 80 puntos, 4 desde 65, 3 de
 **Límites de la valoración.** Es una heurística. Los pesos y los umbrales son criterio propio y no están calibrados con datos de capturas, así que no garantiza ninguna pesca. Los límites de tormenta, lluvia y viento fuerte son de seguridad, pero PescaApp no sustituye a los avisos oficiales (por ejemplo, AEMET en España). Consúltalos antes de salir.
 
 La marea de la previsión es la predicción armónica, que llega 75 horas hacia delante. Con WorldTides, las alturas solo llegan a 33 horas, y las horas fuera de ese tramo muestran «—». El coeficiente de cada hora es el del día local de la estación. Si no hay tabla de marea, se usa la estimación por fase lunar y la celda lo marca como «aprox.».
+
+## Idiomas y países
+
+PescaApp se muestra en el idioma que corresponde, por este orden:
+
+1. El que elijas en Ajustes. «Automático» es la opción por defecto.
+2. Si es automático, el idioma del país del lugar. El país viene de Nominatim (`country_code`).
+3. Si el país no tiene idioma en la aplicación, el idioma del navegador.
+4. Si nada encaja, inglés.
+
+Al cambiar de idioma o de lugar, se vuelven a pintar todos los textos, también los dinámicos. Los
+textos sin traducción se muestran en inglés. El texto de origen es el castellano, así que la versión
+en castellano no cambia.
+
+**Idiomas disponibles:** castellano, inglés, francés, portugués, alemán, italiano, neerlandés, polaco,
+ruso, turco, árabe, hindi, indonesio, japonés, coreano, chino simplificado, tailandés y vietnamita. El
+árabe se muestra de derecha a izquierda.
+
+**Traducciones automáticas.** Las traducciones de los idiomas que no son castellano se han generado
+con IA y no han sido revisadas por hablantes nativos. Revísalas antes de publicar, sobre todo el aviso
+legal y los textos de seguridad.
+
+**Qué no se traduce ni se aplica fuera de España**
+
+- Las tallas mínimas, las vedas, las protecciones y el catálogo de especies y zonas existen solo para
+  España. En otros países la app dice que no hay referencia y no aplica reglas de otro lugar.
+- Un lugar cuyo país no se conoce tampoco tiene referencia de tallas, aunque esté cerca de la costa
+  catalogada.
+- Los nombres de especies y de zonas del catálogo siguen en castellano.
+- Las unidades son métricas (km/h, hPa, °C, cm, kg).
+- Los datos de mareas, el tiempo y la luna son los mismos en todo el mundo.
+
+**Cómo añadir un idioma**
+
+1. Crea `js/i18n/<código>.js` con `PescaApp.i18n.register('<código>', { … })`, con una entrada por cada
+   texto que devuelva `node tools/i18n-check.mjs --keys ruta.json`.
+2. Añade el idioma a `LOCALES` y a `COUNTRIES_BY_LOCALE` en `js/i18n.js`.
+3. Comprueba los marcadores y la cobertura con `node tools/i18n-check.mjs`.
+
+El comprobador extrae las claves de las llamadas `t(…)` y `mark(…)` de `js/*.js` y de los elementos
+`data-i18n` de `index.html`, y avisa si una traducción cambia los marcadores `{nombre}`.
 
 ## APIs y fuentes de datos
 
@@ -166,6 +208,8 @@ npm test
 index.html              Estructura de la página
 css/styles.css          Estilos (paleta marina, modo oscuro, diseño responsive)
 js/config.js            URLs de las APIs, clave opcional, cachés, radio de estaciones y teselas
+js/i18n.js              Idioma de la interfaz: t(), catálogos bajo demanda, país e idioma que corresponde
+js/i18n/                Catálogos de traducción, uno por idioma (inglés siempre cargado)
 js/utils.js             Utilidades: números, fechas, red, caché y almacenamiento
 js/moon.js              Fase lunar (cálculo propio)
 js/data/species-data.js Catálogo de especies, zonas y puntos de costa (fuentes citadas)
@@ -180,7 +224,7 @@ js/forecast.js          Previsión por horas: filas cada hora, márgenes de esce
 js/validation.js        Talla mínima, vedas, protección y peso estimado
 js/catches.js           Registro de capturas, exportación y reducción de fotos
 js/app.js               Controlador de la interfaz
-tools/                  Scripts de mantenimiento: build-tide-data.mjs y build-vendor.mjs
+tools/                  Scripts de mantenimiento: build-tide-data.mjs, build-vendor.mjs e i18n-check.mjs
 tests/                  Pruebas unitarias (node:test)
 ```
 
@@ -192,7 +236,7 @@ Los archivos se cargan con `<script>` clásicos, en orden, sin módulos ES. Así
 npm test
 ```
 
-Ejecuta 105 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (incluida su correlación con la fase lunar), mareas (predicción armónica y WorldTides), zonas horarias de las estaciones, selección de estación, predicción de A Coruña, integridad de todas las teselas, parseo de respuestas, índice de actividad, valoración de pesca, previsión por horas, escenarios y percentiles, validación de tallas y vedas, catálogo, zonas y exportación CSV/JSON.
+Ejecuta 120 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (incluida su correlación con la fase lunar), mareas (predicción armónica y WorldTides), zonas horarias de las estaciones, selección de estación, predicción de A Coruña, integridad de todas las teselas, parseo de respuestas, índice de actividad, valoración de pesca, previsión por horas, escenarios y percentiles, idiomas y textos traducibles, validación de tallas y vedas, catálogo, zonas y exportación CSV/JSON.
 
 ## Limitaciones conocidas
 
@@ -205,6 +249,7 @@ Ejecuta 105 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (inc
 - **Pesos estimados:** el error habitual es de ±30 %.
 - **Zonas de especies:** el catálogo cubre sobre todo la costa española y tiene pocas especies en Canarias. El agua dulce y el interior no están incluidos.
 - **Fotos:** se guardan en localStorage reducidas a 800 px. El navegador limita este espacio (unos 5 MB). Si no cabe, la captura se guarda sin foto.
+- **Idiomas:** las traducciones distintas del castellano son automáticas y no están revisadas por hablantes nativos. El catálogo de especies, las tallas y las vedas siguen en castellano y solo existen para España.
 - **Datos locales:** las capturas solo existen en este navegador. Exporta el JSON para tener copias de seguridad.
 
 ## Fuentes y créditos
