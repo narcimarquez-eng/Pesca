@@ -236,7 +236,7 @@ Los archivos se cargan con `<script>` clásicos, en orden, sin módulos ES. Así
 npm test
 ```
 
-Ejecuta 120 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (incluida su correlación con la fase lunar), mareas (predicción armónica y WorldTides), zonas horarias de las estaciones, selección de estación, predicción de A Coruña, integridad de todas las teselas, parseo de respuestas, índice de actividad, valoración de pesca, previsión por horas, escenarios y percentiles, idiomas y textos traducibles, validación de tallas y vedas, catálogo, zonas y exportación CSV/JSON.
+Ejecuta 123 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (incluida su correlación con la fase lunar), mareas (predicción armónica y WorldTides), zonas horarias de las estaciones, selección de estación, predicción de A Coruña, integridad de todas las teselas, parseo de respuestas, índice de actividad, valoración de pesca, previsión por horas, escenarios y percentiles, idiomas, catálogos de traducción (mismas claves y marcadores que el inglés) y comprobador de textos, validación de tallas y vedas, catálogo, zonas y exportación CSV/JSON.
 
 ## Limitaciones conocidas
 

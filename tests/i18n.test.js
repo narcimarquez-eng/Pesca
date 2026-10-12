@@ -1,5 +1,9 @@
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const { spawnSync } = require('node:child_process');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const App = require('./helpers');
@@ -73,4 +77,47 @@ test('un idioma sin catálogo se sustituye por inglés, y el selector ofrece tod
   assert.equal(await i18n.setLocale('xx'), 'en');
   const codes = i18n.localeOptions().map((option) => option.code);
   assert.ok(codes.includes('es') && codes.includes('en') && codes.includes('zh-Hans'));
+});
+
+/** Carga cada catálogo de js/i18n/ en un entorno aislado, igual que tools/i18n-check.mjs. */
+function loadCatalogs() {
+  const folder = path.join(__dirname, '..', 'js', 'i18n');
+  const catalogs = {};
+  for (const file of fs.readdirSync(folder).filter((name) => name.endsWith('.js'))) {
+    let registered = null;
+    const sandbox = { PescaApp: { i18n: { register: (code, messages) => { registered = { code, messages }; } } } };
+    vm.runInNewContext(fs.readFileSync(path.join(folder, file), 'utf8'), sandbox, { filename: file });
+    assert.equal(registered.code, path.basename(file, '.js'), `${file} debe registrarse con su mismo nombre`);
+    catalogs[registered.code] = registered.messages;
+  }
+  return catalogs;
+}
+
+/** Marcadores {nombre} de un texto, ordenados, para comparar el original con la traducción. */
+const markersOf = (text) => [...text.matchAll(/\{[^{}]+\}/g)].map((match) => match[0]).sort().join(' ');
+
+test('todos los catálogos tienen las claves del inglés, sin textos vacíos y con los mismos marcadores', () => {
+  const catalogs = loadCatalogs();
+  const keys = Object.keys(catalogs.en).sort();
+  assert.ok(keys.length > 0, 'el catálogo inglés no está vacío');
+  for (const [code, messages] of Object.entries(catalogs)) {
+    assert.deepEqual(Object.keys(messages).sort(), keys, `${code}: claves distintas de las del inglés`);
+    for (const key of keys) {
+      assert.notEqual(messages[key].trim(), '', `${code}: texto vacío en «${key}»`);
+      assert.equal(markersOf(messages[key]), markersOf(key), `${code}: marcadores distintos en «${key}»`);
+    }
+  }
+});
+
+test('cada idioma de LOCALES, salvo el castellano, tiene su catálogo', () => {
+  const catalogs = loadCatalogs();
+  for (const code of Object.keys(i18n.LOCALES).filter((locale) => locale !== 'es')) {
+    assert.ok(catalogs[code], `falta js/i18n/${code}.js`);
+  }
+});
+
+test('tools/i18n-check.mjs pasa: todos los textos del código tienen traducción en cada idioma', () => {
+  const checker = path.join(__dirname, '..', 'tools', 'i18n-check.mjs');
+  const run = spawnSync(process.execPath, [checker], { encoding: 'utf8' });
+  assert.equal(run.status, 0, run.stdout);
 });

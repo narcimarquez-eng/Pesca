@@ -6,10 +6,12 @@
  *   los elementos data-i18n / data-i18n-attrs de index.html.
  * - Lee cada catálogo js/i18n/<idioma>.js y comprueba que sus marcadores {nombre} coinciden
  *   con los del texto original.
- * - Informa de la cobertura de cada idioma (las claves que faltan usan inglés).
+ * - Informa de la cobertura de cada idioma. En la app, una clave sin traducir usa el inglés,
+ *   pero aquí es un error, para que los catálogos queden completos.
  *
  * Uso: node tools/i18n-check.mjs [--keys ruta.json]
- * Sale con código 1 si hay errores (marcadores distintos o claves dinámicas).
+ * Sale con código 1 si hay errores: marcadores distintos, claves dinámicas, o claves que faltan
+ * o sobran en un catálogo.
  */
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -113,6 +115,8 @@ for (const catalog of catalogs) {
   if (catalog.registeredAs !== catalog.code) failures.push(`${catalog.code}.js registra "${catalog.registeredAs}"`);
   const missing = sourceKeys.filter((key) => !(key in table) || table[key] === '');
   const unknown = Object.keys(table).filter((key) => !sourceKeys.includes(key));
+  if (missing.length) failures.push(`${catalog.code}: ${missing.length} claves sin traducir (p. ej. «${missing[0].slice(0, 60)}»)`);
+  if (unknown.length) failures.push(`${catalog.code}: ${unknown.length} claves que ya no están en el código (p. ej. «${unknown[0].slice(0, 60)}»)`);
   let mismatches = 0;
   for (const key of sourceKeys) {
     if (!(key in table) || table[key] === '') continue;
