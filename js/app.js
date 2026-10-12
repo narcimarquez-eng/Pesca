@@ -64,6 +64,7 @@
       settingsDialog: byId('settings-dialog'),
       settingsClose: byId('settings-close'),
       settingsTheme: byId('settings-theme'),
+      settingsLanguage: byId('settings-language'),
       settingsTideSource: byId('settings-tide-source'),
       settingsTidesForm: byId('settings-tides-form'),
       settingsTidesKey: byId('settings-tides-key'),
@@ -278,6 +279,7 @@
     renderSpeciesList();
     renderCatchPlace();
     updateCatchAssessment();
+    applyLocale();
     if (refresh) {
       refreshLiveData();
     }
@@ -1637,6 +1639,10 @@
     dom.themeToggle.addEventListener('click', cycleTheme);
     dom.settingsOpen.addEventListener('click', openSettings);
     dom.settingsClose.addEventListener('click', () => closeDialog(dom.settingsDialog));
+    dom.settingsLanguage.addEventListener('change', () => {
+      utils.storage.write(LOCALE_KEY, dom.settingsLanguage.value);
+      applyLocale();
+    });
     dom.settingsTheme.addEventListener('change', (event) => {
       utils.storage.write(THEME_KEY, event.target.value);
       applyTheme(event.target.value);
@@ -1689,6 +1695,60 @@
     dom.exportCsv.addEventListener('click', () => exportCatches('csv'));
   }
 
+  /** Preferencia de idioma guardada: 'auto' (según el lugar y el navegador) o un código de idioma. */
+  const LOCALE_KEY = 'locale';
+
+  /** Opciones del selector de idioma de Ajustes: automático y los idiomas de la aplicación. */
+  function renderLanguageOptions() {
+    if (!dom.settingsLanguage) return;
+    const options = [
+      { code: 'auto', name: PescaApp.i18n.t('Automático (según el lugar)') },
+      ...PescaApp.i18n.localeOptions(),
+    ];
+    dom.settingsLanguage.innerHTML = options
+      .map((option) => `<option value="${option.code}">${utils.escapeHtml(option.name)}</option>`)
+      .join('');
+    dom.settingsLanguage.value = utils.storage.read(LOCALE_KEY, 'auto');
+  }
+
+  /** Vuelve a pintar todos los textos. Se llama al cambiar de idioma. */
+  function renderAll() {
+    applyTheme(currentTheme());
+    renderLanguageOptions();
+    renderPlace();
+    renderWeatherCard();
+    renderMoonCard();
+    renderActivityCard();
+    renderTidesCard();
+    renderForecastCard();
+    renderSpeciesList();
+    renderCatchPlace();
+    renderCatchFormDefaults();
+    renderCatchList();
+    updateCatchAssessment();
+    renderSearchResults(state.searchResults);
+  }
+
+  let localeRequestId = 0;
+
+  /**
+   * Activa el idioma que corresponde: el elegido en Ajustes o, si es automático, el del país
+   * del lugar, el del navegador o inglés. Después vuelve a pintar los textos.
+   */
+  async function applyLocale() {
+    const requestId = ++localeRequestId;
+    const countryCode = state.place ? state.place.countryCode : null;
+    const browserLanguages =
+      navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+    const code = PescaApp.i18n.resolveLocale({
+      preferred: utils.storage.read(LOCALE_KEY, 'auto'),
+      countryCode,
+      browserLanguages,
+    });
+    await PescaApp.i18n.setLocale(code, { countryCode });
+    if (requestId === localeRequestId) renderAll();
+  }
+
   function init() {
     dom = collectElements();
     applyTheme(currentTheme());
@@ -1701,6 +1761,8 @@
     renderActivityCard();
     renderTidesCard();
     renderForecastCard();
+    renderLanguageOptions();
+    applyLocale();
 
     const savedPlace = locationService.loadSavedPlace();
     if (savedPlace) {
