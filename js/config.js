@@ -42,9 +42,6 @@
      */
     worldTidesApiKey: '',
 
-    /** Restringe las búsquedas de lugares en Nominatim a un país (código ISO 3166-1). */
-    searchCountryCode: 'es',
-
     /** Idioma de los nombres de lugar que devuelve Nominatim. */
     language: 'es',
 

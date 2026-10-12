@@ -84,6 +84,24 @@
    * @param {number|null} input.lengthCm Longitud en cm (opcional).
    * @param {Date} [input.dateTime] Fecha de la captura (para el mes de la veda).
    */
+  /**
+   * Evaluación sin referencia: el lugar no está en España, así que no hay tallas, vedas
+   * ni protecciones que comprobar. No se aplica ninguna regla de otro lugar.
+   */
+  function evaluateWithoutReference() {
+    return {
+      alerts: [
+        {
+          level: 'info',
+          code: 'no-reference',
+          message: 'No hay referencia de tallas, vedas ni protecciones para este lugar. Consulta la normativa de tu país o región.',
+        },
+      ],
+      mustRelease: false,
+      minSizeCm: null,
+    };
+  }
+
   function evaluateCatch({ species = null, zoneId = null, lengthCm = null, dateTime = new Date() } = {}) {
     const length = PescaApp.utils.toFiniteNumber(lengthCm);
     const alerts = [];
@@ -166,5 +184,6 @@
     getMinSizeCm,
     findClosedSeason,
     evaluateCatch,
+    evaluateWithoutReference,
   });
 })(typeof window !== 'undefined' ? window : globalThis);

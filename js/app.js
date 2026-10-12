@@ -238,6 +238,21 @@
   // Ubicación
   // ---------------------------------------------------------------------------
 
+  /**
+   * Lugares guardados antes de conocer su país: se completa con la geocodificación inversa,
+   * conservando el nombre que ya tenía. Sin conexión, el lugar sigue sin referencia.
+   */
+  async function completePlaceCountry(place) {
+    try {
+      const geo = await locationService.reverseGeocode(place.lat, place.lon);
+      if (!geo || !geo.countryCode) return;
+      const updated = locationService.buildPlace({ ...place, countryCode: geo.countryCode });
+      if (state.place && state.place.lat === place.lat && state.place.lon === place.lon) setPlace(updated);
+    } catch (error) {
+      // Sin país no hay referencia: el lugar se queda como está.
+    }
+  }
+
   /** Establece el lugar activo, lo guarda y actualiza las tarjetas que dependen de él. */
   function setPlace(place, { refresh = false } = {}) {
     const previous = state.place;
@@ -287,7 +302,13 @@
     dom.zoneBadge.textContent = place.zoneName ? `Zona: ${place.zoneName}` : 'Sin zona';
     dom.refreshButton.disabled = false;
 
-    if (!place.inCoverage) {
+    if (place.countryCode !== 'es') {
+      dom.zoneAlert.hidden = false;
+      dom.zoneAlert.className = 'alert alert-info';
+      dom.zoneAlert.textContent = place.countryCode
+        ? 'No hay referencia de especies, tallas ni vedas para este país. La marea, el tiempo y la luna sí se calculan.'
+        : 'No sabemos en qué país está este lugar, así que no hay referencia de especies, tallas ni vedas.';
+    } else if (!place.inCoverage) {
       dom.zoneAlert.hidden = false;
       dom.zoneAlert.className = 'alert alert-warning';
       dom.zoneAlert.textContent =
@@ -373,6 +394,7 @@
       name: item.name,
       locality: item.locality,
       region: item.region,
+      countryCode: item.countryCode,
       source: 'manual',
     });
     setPlace(place, { refresh: true });
@@ -1000,7 +1022,10 @@
   function renderSpeciesList() {
     const place = state.place;
     if (!place || !place.zoneId) {
-      dom.speciesList.innerHTML = '<li class="muted">Define una ubicación para ver las especies de la zona.</li>';
+      const message = place
+        ? 'No hay catálogo de especies para este lugar. Las tallas y vedas solo se comprueban en España.'
+        : 'Define una ubicación para ver las especies de la zona.';
+      dom.speciesList.innerHTML = `<li class="muted">${message}</li>`;
       dom.speciesCount.textContent = '';
       return;
     }
@@ -1172,7 +1197,10 @@
     const dateTime = utils.parseDateTimeString(values.dateTimeText) || new Date();
     const zoneId = state.place ? state.place.zoneId : null;
 
-    const assessment = validation.evaluateCatch({ species, zoneId, lengthCm, dateTime });
+    // Fuera de España no hay tallas ni vedas de referencia: no se aplican reglas de otro lugar.
+    const assessment = zoneId
+      ? validation.evaluateCatch({ species, zoneId, lengthCm, dateTime })
+      : validation.evaluateWithoutReference();
     const alertsHtml = assessment.alerts
       .map((alert) => `<li class="alert-item alert-${alert.level}">${utils.escapeHtml(alert.message)}</li>`)
       .join('');
@@ -1567,6 +1595,7 @@
     const savedPlace = locationService.loadSavedPlace();
     if (savedPlace) {
       setPlace(savedPlace, { refresh: true });
+      if (savedPlace.countryCode === undefined) completePlaceCountry(savedPlace);
     } else {
       renderWeatherCard();
       renderSpeciesList();

@@ -77,7 +77,7 @@ test('parseCoordinates acepta varios formatos y rechaza valores fuera de rango',
 });
 
 test('buildPlace asigna zona y usa coordenadas como nombre si no hay nombre de lugar', () => {
-  const place = locationService.buildPlace({ lat: 43.3623, lon: -8.4115 });
+  const place = locationService.buildPlace({ lat: 43.3623, lon: -8.4115, countryCode: 'es' });
   assert.equal(place.zoneId, 'atlantico_norte');
   assert.equal(place.inCoverage, true);
   assert.match(place.name, /^Punto 43\.362, -8\.412$/);

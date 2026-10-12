@@ -85,6 +85,7 @@
       // En España, "state" es la comunidad autónoma.
       region: address.state || address.region || null,
       country: address.country || null,
+      countryCode: address.country_code ? String(address.country_code).toLowerCase() : null,
     };
   }
 
@@ -110,7 +111,7 @@
     return place;
   }
 
-  /** Búsqueda de lugares (ciudad, puerto, playa…) limitada al país configurado. */
+  /** Búsqueda de lugares (ciudad, puerto, playa…) en todo el mundo. */
   async function searchPlaces(query) {
     const utils = PescaApp.utils;
     const config = PescaApp.config;
@@ -119,7 +120,6 @@
       format: 'jsonv2',
       limit: 5,
       addressdetails: 1,
-      countrycodes: config.searchCountryCode,
       'accept-language': config.language,
     });
     const list = await utils.fetchJson(url);
@@ -130,6 +130,7 @@
           name: normalized.name || item.display_name || query,
           locality: normalized.locality,
           region: normalized.region,
+          countryCode: normalized.countryCode,
           lat: Number(item.lat),
           lon: Number(item.lon),
         };
@@ -141,8 +142,10 @@
    * Crea el objeto de ubicación que guarda la app: coordenadas, nombre, zona
    * del catálogo y cobertura.
    */
-  function buildPlace({ lat, lon, name = null, locality = null, region = null, source = 'manual' }) {
-    const zone = PescaApp.species.classifyZone(lat, lon);
+  function buildPlace({ lat, lon, name = null, locality = null, region = null, countryCode = null, source = 'manual' }) {
+    // El catálogo de especies, las tallas y las vedas son de España. Solo se asigna zona en España:
+    // en otro país, o si no se sabe el país, no hay referencia aunque la costa esté cerca.
+    const zone = countryCode === 'es' ? PescaApp.species.classifyZone(lat, lon) : null;
     const fallbackName = `Punto ${lat.toFixed(3)}, ${lon.toFixed(3)}`;
     return {
       name: name || fallbackName,
@@ -152,11 +155,12 @@
       lon: PescaApp.utils.round(lon, 5),
       source,
       savedAt: new Date().toISOString(),
-      zoneId: zone.zoneId,
-      zoneName: zone.zoneName,
-      anchorName: zone.anchorName,
-      zoneDistanceKm: zone.distanceKm,
-      inCoverage: zone.inCoverage,
+      countryCode,
+      zoneId: zone ? zone.zoneId : null,
+      zoneName: zone ? zone.zoneName : null,
+      anchorName: zone ? zone.anchorName : null,
+      zoneDistanceKm: zone ? zone.distanceKm : null,
+      inCoverage: zone ? zone.inCoverage : false,
     };
   }
 
@@ -177,6 +181,7 @@
       name: geo ? geo.name : null,
       locality: geo ? geo.locality : null,
       region: geo ? geo.region : null,
+      countryCode: geo ? geo.countryCode : null,
       source,
     });
   }
