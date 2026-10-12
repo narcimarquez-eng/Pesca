@@ -1,0 +1,13 @@
+{
+  "name": "pescaapp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PescaApp: asistente de pesca con clima, mareas, fase lunar, especies de la zona y registro de capturas.",
+  "scripts": {
+    "test": "node --test",
+    "start": "python3 -m http.server 8080"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

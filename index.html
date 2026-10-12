@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PescaApp: asistente de pesca con clima, mareas, fase lunar, especies de la zona y registro de capturas.">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>PescaApp · Asistente de pesca</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script>
+    /* Aplica el tema guardado antes de pintar la página, para evitar parpadeos. */
+    (function () {
+      try {
+        var stored = localStorage.getItem('pescaapp.v1.theme');
+        var theme = stored ? JSON.parse(stored) : 'auto';
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', theme);
+        }
+      } catch (error) {
+        /* Sin acceso a localStorage se usa el tema del sistema. */
+      }
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-icon" aria-hidden="true">🎣</span>
+      <div>
+        <h1>PescaApp</h1>
+        <p>Clima, mareas, luna, especies y capturas para pescadores</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="theme-toggle" class="btn btn-ghost" type="button">🌓 Tema</button>
+      <button id="settings-open" class="btn btn-ghost" type="button">⚙️ Ajustes</button>
+    </div>
+  </header>
+
+  <main id="main" class="layout">
+
+    <!-- Ubicación -->
+    <section class="card" aria-labelledby="location-title">
+      <div class="card-header">
+        <h2 id="location-title">📍 Ubicación</h2>
+        <span id="zone-badge" class="badge" hidden></span>
+      </div>
+      <div id="location-current" class="location-current"></div>
+      <div id="zone-alert" class="alert alert-warning" hidden></div>
+      <div class="actions">
+        <button id="gps-button" class="btn btn-primary" type="button">Usar mi ubicación</button>
+        <button id="refresh-button" class="btn" type="button" disabled>Actualizar datos</button>
+      </div>
+      <form id="location-form" class="inline-form" role="search">
+        <label for="location-query" class="sr-only">Ciudad, puerto, playa o coordenadas</label>
+        <input id="location-query" type="search" autocomplete="off" placeholder="Ciudad, puerto, playa o coordenadas (43.36, -8.41)">
+        <button class="btn" type="submit">Buscar</button>
+      </form>
+      <ul id="location-results" class="results-list" hidden></ul>
+      <div id="location-status" class="status" role="status" aria-live="polite" hidden></div>
+    </section>
+
+    <!-- Condiciones actuales -->
+    <section class="dashboard" aria-label="Condiciones actuales">
+      <article class="card" aria-labelledby="weather-title">
+        <div class="card-header"><h2 id="weather-title">🌤️ Clima actual</h2></div>
+        <div id="weather-body" class="card-body"></div>
+      </article>
+
+      <article class="card" aria-labelledby="activity-title">
+        <div class="card-header"><h2 id="activity-title">🎯 Índice de actividad</h2></div>
+        <div id="activity-body" class="card-body"></div>
+      </article>
+
+      <article class="card" aria-labelledby="moon-title">
+        <div class="card-header"><h2 id="moon-title">🌙 Luna y coeficiente</h2></div>
+        <div id="moon-body" class="card-body"></div>
+      </article>
+
+      <article class="card card-wide" aria-labelledby="tides-title">
+        <div class="card-header"><h2 id="tides-title">🌊 Mareas</h2></div>
+        <div id="tides-body" class="card-body"></div>
+      </article>
+    </section>
+
+    <!-- Especies -->
+    <section class="card" aria-labelledby="species-title">
+      <div class="card-header">
+        <h2 id="species-title">🐟 Especies de la zona</h2>
+        <span id="species-count" class="muted"></span>
+      </div>
+      <label for="species-filter" class="sr-only">Buscar especie</label>
+      <input id="species-filter" type="search" class="filter-input" autocomplete="off" placeholder="Buscar por nombre común o científico">
+      <ul id="species-list" class="species-list"></ul>
+      <p class="fineprint">Lista orientativa de especies habituales de pesca recreativa. No es exhaustiva. Pulsa una especie para ver su ficha.</p>
+    </section>
+
+    <!-- Registro de capturas -->
+    <section class="card" aria-labelledby="catch-title">
+      <div class="card-header"><h2 id="catch-title">📝 Registrar captura</h2></div>
+      <form id="catch-form" class="catch-form" novalidate>
+        <div class="form-grid">
+          <label class="field">
+            <span>Fecha y hora</span>
+            <input id="catch-datetime" type="datetime-local" required>
+            <small class="fineprint">Hora local del lugar. Las capturas pasadas usan datos históricos.</small>
+          </label>
+          <label class="field">
+            <span>Especie</span>
+            <input id="catch-species" type="text" list="datalist-species" autocomplete="off" placeholder="Empieza a escribir…" required>
+          </label>
+          <label class="field">
+            <span>Peso (kg)</span>
+            <input id="catch-weight" type="text" inputmode="decimal" placeholder="Ej.: 1,25">
+          </label>
+          <label class="field">
+            <span>Longitud (cm)</span>
+            <input id="catch-length" type="text" inputmode="decimal" placeholder="Ej.: 42">
+          </label>
+          <label class="field">
+            <span>Cebo</span>
+            <input id="catch-bait" type="text" list="datalist-baits" autocomplete="off" placeholder="Ej.: gamba">
+          </label>
+          <label class="field">
+            <span>Técnica</span>
+            <input id="catch-technique" type="text" list="datalist-techniques" autocomplete="off" placeholder="Ej.: spinning">
+          </label>
+          <label class="field field-wide">
+            <span>Notas</span>
+            <textarea id="catch-notes" rows="2" placeholder="Corriente, color del agua, observaciones…"></textarea>
+          </label>
+          <label class="field field-wide">
+            <span>Foto (opcional)</span>
+            <input id="catch-photo" type="file" accept="image/*">
+            <img id="catch-photo-preview" class="photo-preview" alt="Vista previa de la foto" hidden>
+          </label>
+        </div>
+        <p id="catch-place" class="muted"></p>
+        <div id="catch-assessment" class="assessment"></div>
+        <div class="actions">
+          <button id="catch-submit" class="btn btn-primary" type="submit">Guardar captura</button>
+        </div>
+        <div id="catch-status" class="status" role="status" aria-live="polite" hidden></div>
+      </form>
+    </section>
+
+    <!-- Historial -->
+    <section class="card" aria-labelledby="log-title">
+      <div class="card-header">
+        <h2 id="log-title">📚 Historial de capturas</h2>
+        <span id="catch-count" class="muted"></span>
+      </div>
+      <div class="actions">
+        <button id="export-json" class="btn" type="button">Exportar JSON</button>
+        <button id="export-csv" class="btn" type="button">Exportar CSV</button>
+      </div>
+      <div id="log-status" class="status" role="status" aria-live="polite" hidden></div>
+      <div id="catch-list" class="catch-list"></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p class="legal"><strong>Aviso legal:</strong> PescaApp es una herramienta orientativa y no sustituye a la normativa oficial. Antes de pescar, consulta la normativa vigente de tu comunidad autónoma (tallas mínimas, cupos, vedas y zonas protegidas). Las mareas, el clima, la fase lunar y el índice de actividad son estimaciones.</p>
+    <p class="fineprint">Datos: Open-Meteo (pronóstico, marino e histórico), OpenStreetMap / Nominatim (© colaboradores de OpenStreetMap), WorldTides (con clave propia) y referencias de FishBase y FAO. Ver la lista completa en el código y en el README.</p>
+  </footer>
+
+  <!-- Ficha de especie -->
+  <dialog id="species-dialog" class="dialog" aria-labelledby="species-dialog-body">
+    <div id="species-dialog-body" class="dialog-body"></div>
+    <div class="dialog-footer">
+      <button id="species-dialog-close" class="btn" type="button">Cerrar</button>
+    </div>
+  </dialog>
+
+  <!-- Ajustes -->
+  <dialog id="settings-dialog" class="dialog" aria-labelledby="settings-title">
+    <div class="dialog-body">
+      <h2 id="settings-title">Ajustes</h2>
+
+      <h3>Tema</h3>
+      <label class="field">
+        <span>Apariencia</span>
+        <select id="settings-theme">
+          <option value="auto">Automático (según el sistema)</option>
+          <option value="light">Claro</option>
+          <option value="dark">Oscuro</option>
+        </select>
+      </label>
+
+      <h3>Clave de WorldTides (mareas)</h3>
+      <p class="fineprint">Regístrate gratis en worldtides.info y pega aquí tu clave. Se guarda solo en este navegador.</p>
+      <form id="settings-tides-form" class="inline-form">
+        <label for="settings-tides-key" class="sr-only">Clave de WorldTides</label>
+        <input id="settings-tides-key" type="password" autocomplete="off" placeholder="Clave de WorldTides">
+        <button class="btn btn-primary" type="submit">Guardar</button>
+      </form>
+      <div id="settings-tides-status" class="status" role="status" aria-live="polite" hidden></div>
+
+      <h3>Datos</h3>
+      <p class="fineprint">Borra las capturas, la ubicación y la caché guardadas en este navegador.</p>
+      <button id="settings-clear-data" class="btn btn-danger" type="button">Borrar todos los datos</button>
+    </div>
+    <div class="dialog-footer">
+      <button id="settings-close" class="btn" type="button">Cerrar</button>
+    </div>
+  </dialog>
+
+  <datalist id="datalist-species"></datalist>
+  <datalist id="datalist-baits"></datalist>
+  <datalist id="datalist-techniques"></datalist>
+
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/moon.js"></script>
+  <script src="js/data/species-data.js"></script>
+  <script src="js/species.js"></script>
+  <script src="js/location.js"></script>
+  <script src="js/weather.js"></script>
+  <script src="js/tides.js"></script>
+  <script src="js/activity.js"></script>
+  <script src="js/validation.js"></script>
+  <script src="js/catches.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

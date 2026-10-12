@@ -1,0 +1,8 @@
+# Dependencias locales (no se usan en el proyecto, pero evita subirlas si aparecen)
+node_modules/
+
+# Archivos generados por el sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
