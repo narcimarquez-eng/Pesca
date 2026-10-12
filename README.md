@@ -1,10 +1,10 @@
 # PescaApp
 
-Asistente web para pesca recreativa: clima, mareas en cualquier costa, fase lunar, índice de actividad, especies de la zona y registro de capturas con comprobación de talla y vedas.
+Asistente web para pesca recreativa: clima, previsión por horas, mareas en cualquier costa, fase lunar, valoración de condiciones de pesca, especies de la zona y registro de capturas con comprobación de talla y vedas.
 
 Hecho con HTML, CSS y JavaScript sin frameworks ni dependencias en tiempo de ejecución. Funciona en móvil y en escritorio, con modo claro y oscuro.
 
-> **Aviso legal:** PescaApp es una herramienta orientativa. No sustituye a la normativa oficial. Antes de pescar, consulta la normativa vigente de tu comunidad autónoma o del país donde pesques (tallas mínimas, cupos, vedas y zonas protegidas). Las mareas, el clima, la fase lunar y el índice de actividad son estimaciones. No uses las mareas de PescaApp para navegar.
+> **Aviso legal:** PescaApp es una herramienta orientativa. No sustituye a la normativa oficial. Antes de pescar, consulta la normativa vigente de tu comunidad autónoma o del país donde pesques (tallas mínimas, cupos, vedas y zonas protegidas). Las mareas, el clima, la fase lunar y la valoración de condiciones son estimaciones. No uses las mareas de PescaApp para navegar.
 
 ## Cómo ejecutarla
 
@@ -25,7 +25,8 @@ Al cargar, la app pide tu ubicación. También puedes escribir un lugar (ciudad,
 - **Ubicación:** GPS, búsqueda por nombre o coordenadas. Asigna una zona del catálogo de especies y avisa si estás lejos de la costa catalogada.
 - **Clima actual:** temperatura del aire y del agua, viento (km/h y nudos, con dirección), presión con su tendencia de 3 h, humedad, nubosidad, precipitación, amanecer y atardecer.
 - **Luna:** fase, iluminación y próxima luna llena o nueva (cálculo propio, sin API).
-- **Índice de actividad (0–100):** combina presión, luna, viento y marea, y explica cada factor.
+- **Condiciones de pesca (1–5 estrellas):** valoración a partir de presión, luna, viento y marea, con límites de seguridad por tormenta, lluvia y viento fuerte. Muestra el índice de 0 a 100 y explica cada factor y cada ajuste.
+- **Previsión por horas:** tabla de 72 horas, una fila cada 3 horas desde la hora actual: tiempo, temperatura del aire y del agua, viento y rachas, presión con su tendencia, lluvia, altura de marea con su sentido, coeficiente y valoración. Destaca los tres mejores momentos.
 - **Mareas:** altura actual, próximas pleamar y bajamar, gráfica de 24 horas, **coeficiente de marea de hoy** y una **tabla de los próximos 7 días** con el coeficiente, las pleamares y las bajamares de cada día. Por defecto usa la **predicción armónica de la estación de marea más cercana**, sin registro ni clave. Como opción, puedes usar WorldTides con una clave gratuita. Se muestra la estación usada, su distancia y su licencia.
 - **Especies de la zona:** 17 especies con ficha completa: tallas mínimas por zona, pesos, hábitat, periodos de mayor actividad, cebos, técnicas, restricciones y fuentes.
 - **Registro de capturas:** fecha y hora editables, especie con autocompletado, peso, longitud, cebo, técnica, notas y foto. Las capturas pasadas guardan las condiciones de ese momento: datos históricos de Open-Meteo y marea predicha para esa fecha.
@@ -42,6 +43,34 @@ Al cargar, la app pide tu ubicación. También puedes escribir un lugar (ciudad,
 **Qué no incluye:** viento, presión ni oleaje. Una tormenta o un viento fuerte pueden alterar la marea real. Tampoco sustituye a las tablas oficiales de tu puerto.
 
 Si la estación más cercana está a más de 60 km (por ejemplo, en el interior), la app no muestra predicción y lo indica.
+
+## Previsión y valoración: cómo se calculan
+
+La previsión usa la serie horaria de Open-Meteo: cuatro días (hoy y los tres siguientes), más el día anterior para la tendencia de presión. La tabla muestra una fila cada 3 horas desde la hora actual, durante 72 horas, en la hora local del lugar.
+
+Para cada hora se calcula el índice de actividad (0–100) con estos pesos:
+
+| Factor | Peso | Qué mira |
+|---|---|---|
+| Presión | 30 % | Nivel (ideal entre 1010 y 1020 hPa) y tendencia de las últimas 3 horas |
+| Luna | 20 % | Mareas vivas (luna nueva o llena) frente a mareas muertas |
+| Viento | 25 % | Cuanto más flojo, mejor |
+| Marea | 25 % | Altura respecto al extremo más cercano y coeficiente |
+
+Si falta un dato, su peso se reparte entre los factores disponibles. Después se aplican límites de seguridad. No se compensan con los buenos factores:
+
+| Condición | Ajuste |
+|---|---|
+| Tormenta (códigos WMO 95, 96 y 99) | Máximo 20 puntos |
+| Lluvia intensa (4 mm o más en la última hora) | −30 puntos |
+| Lluvia (1 mm o más en la última hora) | −10 puntos |
+| Viento de 40 km/h o más, o rachas de 50 km/h o más | Máximo 25 puntos |
+
+Las estrellas salen de la puntuación final: 5 desde 80 puntos, 4 desde 65, 3 desde 50, 2 desde 35 y 1 por debajo. Los mejores momentos son las horas con más puntuación de al menos 3 estrellas, separadas al menos 6 horas.
+
+**Límites de la valoración.** Es una heurística. Los pesos y los umbrales son criterio propio y no están calibrados con datos de capturas, así que no garantiza ninguna pesca. Los límites de tormenta, lluvia y viento fuerte son de seguridad, pero PescaApp no sustituye a los avisos oficiales (por ejemplo, AEMET en España). Consúltalos antes de salir.
+
+La marea de la previsión es la predicción armónica, que llega 75 horas hacia delante. Con WorldTides, las alturas solo llegan a 33 horas, y las horas fuera de ese tramo muestran «—». El coeficiente de cada hora es el del día local de la estación. Si no hay tabla de marea, se usa la estimación por fase lunar y la celda lo marca como «aprox.».
 
 ## APIs y fuentes de datos
 
@@ -144,7 +173,8 @@ js/species.js           Búsqueda de especies y asignación de zona
 js/location.js          GPS, búsqueda de lugares y Nominatim
 js/weather.js           Open-Meteo: clima, temperatura del agua e histórico
 js/tides.js             Mareas: predicción armónica por estación, WorldTides opcional y coeficiente
-js/activity.js          Índice de actividad (0–100) con explicación
+js/activity.js          Índice de actividad (0–100), valoración de 1 a 5 estrellas y ajustes de seguridad
+js/forecast.js          Previsión por horas: filas cada 3 h, marea y mejores momentos
 js/validation.js        Talla mínima, vedas, protección y peso estimado
 js/catches.js           Registro de capturas, exportación y reducción de fotos
 js/app.js               Controlador de la interfaz
@@ -160,7 +190,7 @@ Los archivos se cargan con `<script>` clásicos, en orden, sin módulos ES. Así
 npm test
 ```
 
-Ejecuta 76 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (incluida su correlación con la fase lunar), mareas (predicción armónica y WorldTides), zonas horarias de las estaciones, selección de estación, predicción de A Coruña, integridad de todas las teselas, parseo de respuestas, índice de actividad, validación de tallas y vedas, catálogo, zonas y exportación CSV/JSON.
+Ejecuta 96 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (incluida su correlación con la fase lunar), mareas (predicción armónica y WorldTides), zonas horarias de las estaciones, selección de estación, predicción de A Coruña, integridad de todas las teselas, parseo de respuestas, índice de actividad, valoración de pesca, previsión por horas, validación de tallas y vedas, catálogo, zonas y exportación CSV/JSON.
 
 ## Limitaciones conocidas
 
@@ -168,7 +198,7 @@ Ejecuta 76 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (incl
 - **Tallas y vedas:** son referencias orientativas. La talla de pesca recreativa depende de la comunidad autónoma. Varias especies no tienen talla confirmada y ninguna tiene vedas registradas todavía.
 - **Coeficiente de marea:** con la predicción armónica es una estimación de la amplitud del día frente a la media del año de la estación. Puede diferir del coeficiente oficial de las tablas. Si usas WorldTides, el coeficiente cae a una estimación por fase lunar.
 - **Luna:** cálculo de luna media (error de unas horas). Para horas exactas de salida y puesta de la Luna, usa un cálculo astronómico completo.
-- **Índice de actividad:** es una heurística. No garantiza capturas.
+- **Valoración de pesca:** es una heurística y no garantiza capturas. Sus pesos y límites no están calibrados con datos de capturas. La previsión pierde precisión con los días: las horas más lejanas son orientativas.
 - **Pesos estimados:** el error habitual es de ±30 %.
 - **Zonas de especies:** el catálogo cubre sobre todo la costa española y tiene pocas especies en Canarias. El agua dulce y el interior no están incluidos.
 - **Fotos:** se guardan en localStorage reducidas a 800 px. El navegador limita este espacio (unos 5 MB). Si no cabe, la captura se guarda sin foto.

@@ -1,12 +1,13 @@
 /**
  * Condiciones meteorológicas con Open-Meteo (gratuito, sin clave):
- * - Pronóstico y estado actual (api.open-meteo.com).
- * - Temperatura del agua (modelo marino, marine-api.open-meteo.com).
+ * - Pronóstico: estado actual y serie horaria de 4 días (api.open-meteo.com).
+ * - Temperatura de la superficie del agua (modelo marino, marine-api.open-meteo.com).
  * - Datos históricos para registrar capturas pasadas (archive-api.open-meteo.com
  *   o el modelo reciente con past_days).
  *
- * Las horas que devuelve Open-Meteo con timezone=auto son locales del lugar,
- * en formato "YYYY-MM-DDTHH:MM". Por eso se comparan como texto.
+ * Las horas que devuelve Open-Meteo con timezone=auto son locales del lugar, en
+ * formato "YYYY-MM-DDTHH:MM". Se comparan como texto y, para obtener un instante
+ * absoluto, se resta el desfase UTC (utc_offset_seconds) de la respuesta.
  */
 (function (root) {
   'use strict';
@@ -27,7 +28,22 @@
     'wind_gusts_10m',
   ];
 
-  const HOURLY_VARIABLES = [
+  /** Variables horarias del pronóstico (incluye rachas y día/noche para la previsión por horas). */
+  const FORECAST_HOURLY_VARIABLES = [
+    'temperature_2m',
+    'relative_humidity_2m',
+    'precipitation',
+    'weather_code',
+    'cloud_cover',
+    'pressure_msl',
+    'wind_speed_10m',
+    'wind_direction_10m',
+    'wind_gusts_10m',
+    'is_day',
+  ];
+
+  /** Variables del histórico. Se mantienen mínimas para que el archivo las admita todas. */
+  const HISTORY_VARIABLES = [
     'temperature_2m',
     'relative_humidity_2m',
     'precipitation',
@@ -38,13 +54,20 @@
     'wind_direction_10m',
   ];
 
-  const HISTORY_VARIABLES = HOURLY_VARIABLES;
+  /**
+   * Días de pronóstico horario que se piden, incluido hoy. Con 4 días, desde cualquier
+   * hora del día hay al menos 72 horas de datos, que es lo que muestra la previsión.
+   */
+  const FORECAST_DAYS = 4;
 
   /** Por debajo de esta antigüedad (días) se usa el modelo reciente; por encima, el archivo histórico. */
   const ARCHIVE_MIN_AGE_DAYS = 8;
 
   /** Máximo de días pasados que admite el endpoint de pronóstico. */
   const MAX_PAST_DAYS = 92;
+
+  /** Versión de la caché del pronóstico: cambiarla invalida las entradas antiguas. */
+  const FORECAST_CACHE_VERSION = 'v2';
 
   /** Códigos WMO de tiempo: [códigos, descripción, icono]. */
   const WEATHER_CODES = [
@@ -62,6 +85,9 @@
     [[96, 99], 'Tormenta con granizo', '⛈️'],
   ];
 
+  /** Hora local de Open-Meteo: "YYYY-MM-DDTHH:MM" (los segundos y el desfase no se usan aquí). */
+  const LOCAL_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+
   /** Redondea la coordenada para la caché (unos 100 m de precisión). */
   function roundCoordinate(value) {
     return value.toFixed(3);
@@ -77,6 +103,20 @@
   }
 
   /**
+   * Instante absoluto (ms) de una hora local del lugar "YYYY-MM-DDTHH:MM".
+   * Resta el desfase UTC del lugar. Devuelve null si el texto no es válido.
+   */
+  function localTimeToMs(localText, utcOffsetSeconds) {
+    // Date.parse acepta textos sueltos (y da fechas absurdas), así que se valida el formato antes.
+    const text = String(localText);
+    if (!LOCAL_TIME_PATTERN.test(text)) return null;
+    const wallClockMs = Date.parse(`${text.slice(0, 16)}:00Z`);
+    if (!Number.isFinite(wallClockMs)) return null;
+    const offsetSeconds = PescaApp.utils.toFiniteNumber(utcOffsetSeconds) || 0;
+    return wallClockMs - offsetSeconds * 1000;
+  }
+
+  /**
    * Variación de presión en las últimas `hoursBack` horas (hPa).
    * Devuelve null si no hay datos suficientes.
    */
@@ -88,23 +128,37 @@
     return previous === null ? null : PescaApp.utils.round(currentPressure - previous, 1);
   }
 
+  /** Serie numérica de una variable horaria, con null donde falte el dato. */
+  function numericSeries(hourly, name, length) {
+    const values = Array.isArray(hourly[name]) ? hourly[name] : [];
+    return Array.from({ length }, (_, index) => PescaApp.utils.toFiniteNumber(values[index]));
+  }
+
+  /** Tendencia de presión de 3 horas para cada posición de la serie. */
+  function pressureTrendSeries(pressures, hoursBack = 3) {
+    return pressures.map((value, index) => {
+      if (index < hoursBack || value === null || pressures[index - hoursBack] === null) return null;
+      return PescaApp.utils.round(value - pressures[index - hoursBack], 1);
+    });
+  }
+
   /** Código WMO → descripción en castellano e icono. */
   function describeWeatherCode(code) {
     const found = WEATHER_CODES.find(([codes]) => codes.includes(code));
     return found ? { label: found[1], icon: found[2] } : { label: 'Sin datos', icon: '❔' };
   }
 
-  /** Construye la URL del pronóstico con condiciones actuales, horarias y amanecer/atardecer. */
+  /** Construye la URL del pronóstico con condiciones actuales, serie horaria y un día pasado. */
   function buildForecastUrl(lat, lon) {
     return PescaApp.utils.buildUrl(PescaApp.config.endpoints.forecast, {
       latitude: lat.toFixed(4),
       longitude: lon.toFixed(4),
       current: CURRENT_VARIABLES,
-      hourly: HOURLY_VARIABLES,
+      hourly: FORECAST_HOURLY_VARIABLES,
       daily: ['sunrise', 'sunset'],
       timezone: 'auto',
       past_days: 1,
-      forecast_days: 2,
+      forecast_days: FORECAST_DAYS,
     });
   }
 
@@ -119,7 +173,8 @@
   }
 
   /**
-   * Normaliza la respuesta del pronóstico a un objeto con nombres propios.
+   * Normaliza la respuesta del pronóstico. Devuelve el estado actual, los datos
+   * diarios y la serie horaria (`hourly`) con la tendencia de presión de cada hora.
    * Lanza un error si la respuesta no tiene la estructura esperada.
    */
   function normalizeForecast(json) {
@@ -138,9 +193,27 @@
     const daily = json.daily || {};
     const dailyIndex = Array.isArray(daily.time) ? daily.time.indexOf(todayText) : -1;
 
+    const length = hourly.time.length;
+    const pressureSeries = numericSeries(hourly, 'pressure_msl', length);
+    const series = {
+      times: hourly.time.slice(),
+      temperatureC: numericSeries(hourly, 'temperature_2m', length),
+      humidityPercent: numericSeries(hourly, 'relative_humidity_2m', length),
+      precipitationMm: numericSeries(hourly, 'precipitation', length),
+      weatherCode: numericSeries(hourly, 'weather_code', length),
+      cloudCoverPercent: numericSeries(hourly, 'cloud_cover', length),
+      pressureHpa: pressureSeries,
+      pressureTrend3hHpa: pressureTrendSeries(pressureSeries),
+      windSpeedKmh: numericSeries(hourly, 'wind_speed_10m', length),
+      windDirectionDeg: numericSeries(hourly, 'wind_direction_10m', length),
+      windGustsKmh: numericSeries(hourly, 'wind_gusts_10m', length),
+      isDay: numericSeries(hourly, 'is_day', length),
+    };
+
     return {
       timezone: json.timezone || null,
       timezoneAbbreviation: json.timezone_abbreviation || null,
+      utcOffsetSeconds: utils.toFiniteNumber(json.utc_offset_seconds),
       elevationM: utils.toFiniteNumber(json.elevation),
       observedAt: current.time,
       airTemperatureC: utils.toFiniteNumber(current.temperature_2m),
@@ -158,24 +231,38 @@
       sunrise: dailyIndex >= 0 && daily.sunrise ? daily.sunrise[dailyIndex] || null : null,
       sunset: dailyIndex >= 0 && daily.sunset ? daily.sunset[dailyIndex] || null : null,
       waterTemperatureC: null,
+      hourly: series,
     };
   }
 
-  /** Extrae la temperatura del agua para la hora indicada. Devuelve null si no hay dato. */
-  function extractWaterTemperature(json, observedAt) {
+  /** Serie de temperatura del agua del modelo marino: { times, values } o null. */
+  function extractWaterSeries(json) {
     const hourly = json && json.hourly;
     if (!hourly || !Array.isArray(hourly.time) || !Array.isArray(hourly.sea_surface_temperature)) {
       return null;
     }
-    const index = findHourIndex(hourly.time, observedAt);
-    if (index < 0) return null;
-    return PescaApp.utils.toFiniteNumber(hourly.sea_surface_temperature[index]);
+    return {
+      times: hourly.time.slice(),
+      values: hourly.sea_surface_temperature.map((value) => PescaApp.utils.toFiniteNumber(value)),
+    };
+  }
+
+  /** Temperatura del agua de la hora indicada dentro de una serie. Devuelve null si no hay dato. */
+  function waterValueAt(series, observedAt) {
+    if (!series) return null;
+    const index = series.times.indexOf(toHourKey(observedAt));
+    return index < 0 ? null : series.values[index];
+  }
+
+  /** Temperatura del agua en una respuesta del modelo marino. Devuelve null si no hay dato. */
+  function extractWaterTemperature(json, observedAt) {
+    return waterValueAt(extractWaterSeries(json), observedAt);
   }
 
   /** Previsión y estado actual para una ubicación. Usa caché de 15 minutos. */
   async function getForecast(lat, lon) {
     const utils = PescaApp.utils;
-    const cacheKey = `forecast:${roundCoordinate(lat)},${roundCoordinate(lon)}`;
+    const cacheKey = `forecast:${FORECAST_CACHE_VERSION}:${roundCoordinate(lat)},${roundCoordinate(lon)}`;
     const cached = utils.cache.get(cacheKey, PescaApp.config.cacheMs.forecast);
     if (cached) return cached;
 
@@ -186,10 +273,10 @@
   }
 
   /**
-   * Temperatura del agua en el momento indicado. Es un dato opcional: si falla
-   * o el modelo no tiene datos para esa zona, devuelve null sin lanzar error.
+   * Serie horaria de la temperatura del agua. Es un dato opcional: si falla o el
+   * modelo no tiene datos para la zona, devuelve null sin lanzar error.
    */
-  async function getWaterTemperature(lat, lon, observedAt) {
+  async function getWaterSeries(lat, lon) {
     const utils = PescaApp.utils;
     const cacheKey = `marine:${roundCoordinate(lat)},${roundCoordinate(lon)}`;
     try {
@@ -198,7 +285,7 @@
         json = await utils.fetchJson(buildMarineUrl(lat, lon));
         utils.cache.set(cacheKey, json);
       }
-      return extractWaterTemperature(json, observedAt);
+      return extractWaterSeries(json);
     } catch (error) {
       return null;
     }
@@ -291,20 +378,25 @@
 
   PescaApp.weather = Object.freeze({
     CURRENT_VARIABLES,
-    HOURLY_VARIABLES,
+    FORECAST_HOURLY_VARIABLES,
+    FORECAST_DAYS,
+    HISTORY_VARIABLES,
     ARCHIVE_MIN_AGE_DAYS,
     toHourKey,
     findHourIndex,
+    localTimeToMs,
     computePressureTrend,
     describeWeatherCode,
     buildForecastUrl,
     buildMarineUrl,
     buildHistoryRequest,
     normalizeForecast,
+    extractWaterSeries,
+    waterValueAt,
     extractWaterTemperature,
     normalizeHistorySnapshot,
     getForecast,
-    getWaterTemperature,
+    getWaterSeries,
     getHistoricalConditions,
   });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -17,6 +17,7 @@ const MODULE_FILES = [
   'js/weather.js',
   'js/tides.js',
   'js/activity.js',
+  'js/forecast.js',
   'js/validation.js',
   'js/catches.js',
 ];

@@ -1,6 +1,7 @@
 /**
  * Índice de actividad de pesca (0–100), estimado a partir de la presión, la
- * fase lunar, el viento y la marea.
+ * fase lunar, el viento y la marea. La valoración de 1 a 5 estrellas (computeFishingRating)
+ * parte de ese índice y le aplica límites de seguridad por tormenta, lluvia y viento fuerte.
  *
  * Es una heurística orientativa, no una predicción. Los pesos y las curvas
  * están pensados para ser fáciles de ajustar: cambia WEIGHTS o las tablas de
@@ -244,14 +245,131 @@
     };
   }
 
+  /** Códigos WMO de tormenta: se limita la valoración aunque el resto de factores sean buenos. */
+  const THUNDERSTORM_CODES = Object.freeze([95, 96, 99]);
+
+  /** Estrellas (1–5) y etiqueta según la puntuación final ajustada (0–100). */
+  const STAR_THRESHOLDS = Object.freeze([
+    { min: 80, stars: 5, label: 'Excelente' },
+    { min: 65, stars: 4, label: 'Buena' },
+    { min: 50, stars: 3, label: 'Aceptable' },
+    { min: 35, stars: 2, label: 'Floja' },
+    { min: -Infinity, stars: 1, label: 'Mala' },
+  ]);
+
+  /** Estrellas y etiqueta de una puntuación final. Sin puntuación, "Sin datos". */
+  function ratingFor(score) {
+    if (!Number.isFinite(score)) return { stars: null, label: 'Sin datos' };
+    const { stars, label } = STAR_THRESHOLDS.find((threshold) => score >= threshold.min);
+    return { stars, label };
+  }
+
+  /**
+   * Ajustes de seguridad sobre el índice. Son límites, no factores: una tormenta o un
+   * viento fuerte no se compensan con una buena marea ni con una luna favorable.
+   * Las penalizaciones restan puntos y los topes fijan una puntuación máxima.
+   */
+  function collectAdjustments(input) {
+    const utils = PescaApp.utils;
+    const adjustments = [];
+    const rain = utils.toFiniteNumber(input.precipitationMm);
+    const wind = utils.toFiniteNumber(input.windSpeedKmh);
+    const gusts = utils.toFiniteNumber(input.windGustsKmh);
+
+    if (THUNDERSTORM_CODES.includes(input.weatherCode)) {
+      adjustments.push({ key: 'storm', label: 'tormenta', cap: 20 });
+    }
+    if (rain !== null && rain >= 4) {
+      adjustments.push({ key: 'heavy-rain', label: 'lluvia intensa', penalty: 30 });
+    } else if (rain !== null && rain >= 1) {
+      adjustments.push({ key: 'rain', label: 'lluvia', penalty: 10 });
+    }
+    if ((wind !== null && wind >= 40) || (gusts !== null && gusts >= 50)) {
+      adjustments.push({ key: 'strong-wind', label: 'viento fuerte', cap: 25 });
+    }
+    return adjustments;
+  }
+
+  /**
+   * Frase para la tarjeta: los ajustes de seguridad aplicados (o su ausencia) y los datos
+   * que faltan. No repite la etiqueta ni la puntuación, que la tarjeta ya muestra.
+   */
+  function buildRatingSummary(rating) {
+    if (rating.score === null) return 'No hay datos suficientes para valorar las condiciones.';
+    const parts = [];
+    if (rating.adjustments.length) {
+      const reasons = rating.adjustments.map((item) => `${item.label} (${item.effect})`);
+      parts.push(`Ajustes de seguridad: ${reasons.join(', ')}.`);
+    } else {
+      parts.push('Sin ajustes de seguridad: no hay tormenta, lluvia ni viento fuerte.');
+    }
+    if (rating.missing.length) {
+      parts.push(`Sin datos de: ${rating.missing.map((label) => label.toLowerCase()).join(', ')}.`);
+    }
+    return parts.join(' ');
+  }
+
+  /**
+   * Valoración de pesca de 1 a 5 estrellas: el índice de actividad con los límites de
+   * seguridad aplicados. Recibe los mismos datos que computeActivityIndex, más las
+   * condiciones de precipitación, viento racheado y código de tiempo.
+   *
+   * @param {object} input Datos de computeActivityIndex y, además:
+   * @param {number|null} input.precipitationMm Lluvia de la última hora (mm).
+   * @param {number|null} input.windGustsKmh Rachas de viento (km/h).
+   * @param {number|null} input.weatherCode Código WMO del tiempo.
+   * @returns {{score: number|null, baseScore: number|null, stars: number|null, label: string, adjustments: object[], factors: object[], missing: string[], summary: string}}
+   */
+  function computeFishingRating(input = {}) {
+    const index = computeActivityIndex(input);
+    if (index.score === null) {
+      return {
+        score: null,
+        baseScore: null,
+        stars: null,
+        label: 'Sin datos',
+        adjustments: [],
+        factors: [],
+        missing: index.missing,
+        summary: index.summary,
+      };
+    }
+
+    const adjustments = collectAdjustments(input);
+    const penalty = adjustments.reduce((sum, item) => sum + (item.penalty || 0), 0);
+    const caps = adjustments.filter((item) => item.cap !== undefined).map((item) => item.cap);
+    const score = Math.round(Math.max(0, Math.min(index.score - penalty, 100, ...caps)));
+    const { stars, label } = ratingFor(score);
+
+    const rating = {
+      score,
+      baseScore: index.score,
+      stars,
+      label,
+      adjustments: adjustments.map((item) => ({
+        key: item.key,
+        label: item.label,
+        effect: item.penalty ? `−${item.penalty}` : `máximo ${item.cap}`,
+      })),
+      factors: index.factors,
+      missing: index.missing,
+    };
+    return { ...rating, summary: buildRatingSummary(rating) };
+  }
+
   PescaApp.activity = Object.freeze({
     WEIGHTS,
     LEVELS,
+    THUNDERSTORM_CODES,
+    STAR_THRESHOLDS,
     describeLevel,
     scorePressure,
     scoreMoon,
     scoreWind,
     scoreTide,
     computeActivityIndex,
+    ratingFor,
+    buildRatingSummary,
+    computeFishingRating,
   });
 })(typeof window !== 'undefined' ? window : globalThis);

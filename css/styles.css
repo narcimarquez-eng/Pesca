@@ -1012,3 +1012,83 @@ details > *:not(summary) {
     transition: none !important;
   }
 }
+
+/* --- Valoración de pesca y previsión por horas ------------------------------ */
+.stars {
+  display: inline-flex;
+  gap: 2px;
+  font-size: 1.15rem;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.star-on {
+  color: #e9a820;
+}
+
+.star-off {
+  color: var(--border);
+}
+
+.score-badge.rating-high {
+  background: radial-gradient(circle at 30% 30%, #5cc48c, var(--ok));
+}
+
+.score-badge.rating-mid {
+  background: radial-gradient(circle at 30% 30%, var(--sea-500), var(--sea-900));
+}
+
+.score-badge.rating-low {
+  background: radial-gradient(circle at 30% 30%, #e6a090, var(--danger));
+}
+
+.score-badge.rating-none {
+  background: var(--muted);
+}
+
+.best-moments {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--ok-bg);
+}
+
+.best-moments p {
+  margin: 0 0 6px;
+}
+
+.best-moments ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.forecast-table {
+  min-width: 680px;
+  font-size: 0.88rem;
+}
+
+.forecast-table th[scope='row'] {
+  white-space: nowrap;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.forecast-table .day-row th {
+  background: var(--sea-100);
+  color: var(--sea-900);
+  font-weight: 700;
+}
+
+.forecast-table .is-now th,
+.forecast-table .is-now td {
+  background: var(--info-bg);
+}
+
+.fc-note {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--muted);
+}

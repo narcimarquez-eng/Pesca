@@ -38,6 +38,12 @@
   const LIVE_PAST_MS = 3 * HOUR_MS;
   const LIVE_FUTURE_MS = 33 * HOUR_MS;
 
+  /**
+   * La predicción armónica es local y barata, así que cubre las 72 h de la previsión
+   * por horas. WorldTides sigue con LIVE_FUTURE_MS para no gastar cuota de la clave.
+   */
+  const HARMONIC_FUTURE_MS = 75 * HOUR_MS;
+
   /** La caché de WorldTides debe cubrir al menos 3 h atrás y 12 h adelante. */
   const LIVE_REQUIRED_PAST_MS = 3 * HOUR_MS;
   const LIVE_REQUIRED_FUTURE_MS = 12 * HOUR_MS;
@@ -413,18 +419,18 @@
     };
   }
 
-  /** Vista en vivo con predicción armónica: 3 h atrás, 33 h adelante y la tabla diaria. */
+  /** Vista en vivo con predicción armónica: 3 h atrás, 75 h adelante y la tabla diaria. */
   async function getHarmonicLive(lat, lon, now) {
     const nowMs = now.getTime();
     const { station, distanceKm, predictor } = await resolveHarmonicStation(lat, lon);
-    const { heights, extremes } = predictWindow(predictor, nowMs - LIVE_PAST_MS, nowMs + LIVE_FUTURE_MS);
+    const { heights, extremes } = predictWindow(predictor, nowMs - LIVE_PAST_MS, nowMs + HARMONIC_FUTURE_MS);
     const daily = buildDailyTable(predictor, { timeZone: station.tz, stationId: station.id, nowMs });
     return {
       method: SOURCE_HARMONIC,
       heights,
       extremes,
       coversStartMs: nowMs - LIVE_PAST_MS,
-      coversEndMs: nowMs + LIVE_FUTURE_MS,
+      coversEndMs: nowMs + HARMONIC_FUTURE_MS,
       coefficient: daily.todayCoefficient,
       daily,
       station: describeStation(station, distanceKm),
