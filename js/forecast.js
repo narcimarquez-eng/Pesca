@@ -17,7 +17,6 @@
   'use strict';
 
   const PescaApp = (root.PescaApp = root.PescaApp || {});
-  const { mark } = PescaApp.i18n;
 
   const HOUR_MS = 60 * 60 * 1000;
   const HALF_HOUR_MS = 30 * 60 * 1000;
@@ -39,8 +38,8 @@
   /** Solo se destacan horas de al menos 3 estrellas: si no hay buenas horas, no se inventan. */
   const BEST_MOMENTS_MIN_STARS = 3;
 
-  const COEFFICIENT_SOURCE_HARMONIC = mark('predicción armónica');
-  const COEFFICIENT_SOURCE_MOON = mark('estimación por fase lunar');
+  const COEFFICIENT_SOURCE_HARMONIC = 'predicción armónica';
+  const COEFFICIENT_SOURCE_MOON = 'estimación por fase lunar';
 
   /** Índice de la primera hora de la serie cuya franja de una hora contiene `nowMs`. */
   function findStartIndex(times, utcOffsetSeconds, nowMs) {
