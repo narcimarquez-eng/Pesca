@@ -16,7 +16,11 @@
 
   const THEME_KEY = 'theme';
   const THEME_ORDER = ['auto', 'dark', 'light'];
-  const THEME_LABELS = { auto: 'automático', dark: 'oscuro', light: 'claro' };
+  const THEME_LABELS = {
+    auto: PescaApp.i18n.mark('automático'),
+    dark: PescaApp.i18n.mark('oscuro'),
+    light: PescaApp.i18n.mark('claro'),
+  };
   /** Las capturas de hace más de una hora se consultan en el histórico. */
   const PAST_CATCH_THRESHOLD_MS = 60 * 60 * 1000;
   const MAX_WEIGHT_KG = 500;
@@ -157,12 +161,12 @@
 
   /** Hora "HH:MM" de un instante (milisegundos), en la hora del dispositivo. */
   function formatClock(ts) {
-    return new Date(ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    return new Date(ts).toLocaleTimeString(PescaApp.i18n.intlLocale(), { hour: '2-digit', minute: '2-digit' });
   }
 
   /** Hora "HH:MM" de un instante en la zona horaria de la estación (o la del dispositivo). */
   function formatStationClock(ts, timeZone) {
-    return new Date(ts).toLocaleTimeString('es-ES', {
+    return new Date(ts).toLocaleTimeString(PescaApp.i18n.intlLocale(), {
       hour: '2-digit',
       minute: '2-digit',
       timeZone: tides.safeTimeZone(timeZone),
@@ -172,7 +176,7 @@
   /** Día y hora legibles en la zona horaria de la estación. */
   function formatStationDayAndClock(ts, timeZone) {
     const date = new Date(ts);
-    const dayText = date.toLocaleDateString('es-ES', {
+    const dayText = date.toLocaleDateString(PescaApp.i18n.intlLocale(), {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
@@ -190,7 +194,7 @@
   function formatDateTimeText(text) {
     const date = utils.parseDateTimeString(text);
     if (!date) return '—';
-    return date.toLocaleString('es-ES', {
+    return date.toLocaleString(PescaApp.i18n.intlLocale(), {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -216,7 +220,7 @@
       document.documentElement.setAttribute('data-theme', safeTheme);
     }
     if (dom.themeToggle) {
-      dom.themeToggle.textContent = `🌓 Tema: ${THEME_LABELS[safeTheme]}`;
+      dom.themeToggle.textContent = `🌓 ${PescaApp.i18n.t('Tema: {tema}', { tema: PescaApp.i18n.t(THEME_LABELS[safeTheme]) })}`;
     }
     if (dom.settingsTheme) {
       dom.settingsTheme.value = safeTheme;
@@ -283,7 +287,7 @@
     const place = state.place;
     if (!place) {
       dom.locationCurrent.innerHTML =
-        '<p class="muted">Aún no hay ubicación. Usa el GPS o escribe un lugar o unas coordenadas.</p>';
+        `<p class="muted">${PescaApp.i18n.t('Aún no hay ubicación. Usa el GPS o escribe un lugar o unas coordenadas.')}</p>`;
       dom.zoneBadge.textContent = '';
       dom.zoneBadge.hidden = true;
       dom.zoneAlert.hidden = true;
@@ -291,29 +295,37 @@
       return;
     }
 
-    const subtitle = [place.locality, place.region].filter(Boolean).join(' · ') || 'Sin comunidad autónoma detectada';
-    const sourceLabel = place.source === 'gps' ? 'GPS del dispositivo' : 'Introducida manualmente';
+    const subtitle =
+      [place.locality, place.region].filter(Boolean).join(' · ') || PescaApp.i18n.t('Sin comunidad autónoma detectada');
+    const sourceLabel =
+      place.source === 'gps' ? PescaApp.i18n.t('GPS del dispositivo') : PescaApp.i18n.t('Introducida manualmente');
     dom.locationCurrent.innerHTML = `
       <p class="place-name">${utils.escapeHtml(place.name)}</p>
       <p class="muted">${utils.escapeHtml(subtitle)}</p>
       <p class="coords">${utils.escapeHtml(place.lat.toFixed(4))}, ${utils.escapeHtml(place.lon.toFixed(4))} · ${sourceLabel}</p>`;
 
     dom.zoneBadge.hidden = false;
-    dom.zoneBadge.textContent = place.zoneName ? `Zona: ${place.zoneName}` : 'Sin zona';
+    dom.zoneBadge.textContent = place.zoneName
+      ? PescaApp.i18n.t('Zona: {zona}', { zona: place.zoneName })
+      : PescaApp.i18n.t('Sin zona');
     dom.refreshButton.disabled = false;
 
     if (place.countryCode !== 'es') {
       dom.zoneAlert.hidden = false;
       dom.zoneAlert.className = 'alert alert-info';
       dom.zoneAlert.textContent = place.countryCode
-        ? 'No hay referencia de especies, tallas ni vedas para este país. La marea, el tiempo y la luna sí se calculan.'
-        : 'No sabemos en qué país está este lugar, así que no hay referencia de especies, tallas ni vedas.';
+        ? PescaApp.i18n.t('No hay referencia de especies, tallas ni vedas para este país. La marea, el tiempo y la luna sí se calculan.')
+        : PescaApp.i18n.t('No sabemos en qué país está este lugar, así que no hay referencia de especies, tallas ni vedas.');
     } else if (!place.inCoverage) {
       dom.zoneAlert.hidden = false;
       dom.zoneAlert.className = 'alert alert-warning';
-      dom.zoneAlert.textContent =
-        `Estás a unos ${utils.formatNumber(place.zoneDistanceKm, 0, 'km')} de la costa más cercana del catálogo (${place.anchorName || 'sin referencia'}). ` +
-        'Las especies pueden no ser representativas de tu zona. Pesca en agua dulce no incluida.';
+      dom.zoneAlert.textContent = PescaApp.i18n.t(
+        'Estás a unos {distancia} de la costa más cercana del catálogo ({ancla}). Las especies pueden no ser representativas de tu zona. Pesca en agua dulce no incluida.',
+        {
+          distancia: utils.formatNumber(place.zoneDistanceKm, 0, 'km'),
+          ancla: place.anchorName || PescaApp.i18n.t('sin referencia'),
+        }
+      );
     } else {
       dom.zoneAlert.hidden = true;
     }
@@ -321,13 +333,13 @@
 
   /** Pide la posición del GPS. Si falla, muestra el motivo y deja la búsqueda manual disponible. */
   async function requestGps({ silent = false } = {}) {
-    setStatus(dom.locationStatus, 'Obteniendo tu ubicación…', 'info');
+    setStatus(dom.locationStatus, PescaApp.i18n.t('Obteniendo tu ubicación…'), 'info');
     try {
       const coords = await locationService.requestBrowserPosition();
-      setStatus(dom.locationStatus, 'Identificando el lugar…', 'info');
+      setStatus(dom.locationStatus, PescaApp.i18n.t('Identificando el lugar…'), 'info');
       const place = await locationService.placeFromCoordinates(coords.lat, coords.lon, 'gps');
       setPlace(place, { refresh: true });
-      setStatus(dom.locationStatus, 'Ubicación detectada con el GPS.', 'ok');
+      setStatus(dom.locationStatus, PescaApp.i18n.t('Ubicación detectada con el GPS.'), 'ok');
     } catch (error) {
       setStatus(dom.locationStatus, utils.describeError(error), silent ? 'info' : 'warning');
     }
@@ -340,11 +352,11 @@
 
     const coords = locationService.parseCoordinates(query);
     if (coords) {
-      setStatus(dom.locationStatus, 'Identificando las coordenadas…', 'info');
+      setStatus(dom.locationStatus, PescaApp.i18n.t('Identificando las coordenadas…'), 'info');
       try {
         const place = await locationService.placeFromCoordinates(coords.lat, coords.lon, 'manual');
         setPlace(place, { refresh: true });
-        setStatus(dom.locationStatus, 'Coordenadas aplicadas.', 'ok');
+        setStatus(dom.locationStatus, PescaApp.i18n.t('Coordenadas aplicadas.'), 'ok');
         renderSearchResults([]);
       } catch (error) {
         setStatus(dom.locationStatus, utils.describeError(error), 'warning');
@@ -352,15 +364,23 @@
       return;
     }
 
-    setStatus(dom.locationStatus, 'Buscando el lugar…', 'info');
+    setStatus(dom.locationStatus, PescaApp.i18n.t('Buscando el lugar…'), 'info');
     try {
       const results = await locationService.searchPlaces(query);
       state.searchResults = results;
       renderSearchResults(results);
       if (results.length === 0) {
-        setStatus(dom.locationStatus, 'No se encontró ningún lugar. Prueba con otro nombre o con coordenadas.', 'warning');
+        setStatus(
+          dom.locationStatus,
+          PescaApp.i18n.t('No se encontró ningún lugar. Prueba con otro nombre o con coordenadas.'),
+          'warning'
+        );
       } else {
-        setStatus(dom.locationStatus, `Elige un lugar de la lista (${results.length} resultados).`, 'info');
+        setStatus(
+          dom.locationStatus,
+          PescaApp.i18n.t('Elige un lugar de la lista ({total} resultados).', { total: results.length }),
+          'info'
+        );
       }
     } catch (error) {
       setStatus(dom.locationStatus, utils.describeError(error), 'warning');
@@ -400,7 +420,7 @@
     setPlace(place, { refresh: true });
     renderSearchResults([]);
     state.searchResults = [];
-    setStatus(dom.locationStatus, 'Lugar aplicado.', 'ok');
+    setStatus(dom.locationStatus, PescaApp.i18n.t('Lugar aplicado.'), 'ok');
   }
 
   // ---------------------------------------------------------------------------
@@ -422,7 +442,7 @@
    */
   async function loadForecast(place) {
     const requestId = ++forecastRequestId;
-    renderLoading(dom.weatherBody, 'Consultando el tiempo…');
+    renderLoading(dom.weatherBody, PescaApp.i18n.t('Consultando el tiempo…'));
     state.forecastError = null;
     const scenarioRequest = weather.getEnsemble(place.lat, place.lon).then(
       (ensemble) => ({ ensemble, error: null }),
@@ -473,36 +493,53 @@
   function renderWeatherCard() {
     const forecast = state.forecast;
     if (!state.place) {
-      dom.weatherBody.innerHTML = '<p class="muted">Define una ubicación para ver el tiempo.</p>';
+      dom.weatherBody.innerHTML = `<p class="muted">${PescaApp.i18n.t('Define una ubicación para ver el tiempo.')}</p>`;
       return;
     }
     if (!forecast) {
-      dom.weatherBody.innerHTML = renderAlert(state.forecastError || 'No hay datos del tiempo.', 'warning');
+      dom.weatherBody.innerHTML = renderAlert(
+        state.forecastError || PescaApp.i18n.t('No hay datos del tiempo.'),
+        'warning'
+      );
       return;
     }
 
     const condition = weather.describeWeatherCode(forecast.weatherCode);
     const knots = utils.kmhToKnots(forecast.windSpeedKmh);
-    const windText = `${fmt(forecast.windSpeedKmh, 0, 'km/h')} (${fmt(knots, 1, 'nudos')}) del ${utils.cardinalDirection(forecast.windDirectionDeg)}`;
+    const windText = `${fmt(forecast.windSpeedKmh, 0, 'km/h')} (${fmt(knots, 1, PescaApp.i18n.t('nudos'))}) ${PescaApp.i18n.t('del {direccion}', { direccion: utils.cardinalDirection(forecast.windDirectionDeg) })}`;
     const trend = forecast.pressureTrend3hHpa;
     const trendArrow = trend === null ? '' : trend > 0 ? '▲' : trend < 0 ? '▼' : '➖';
     const pressureText = `${fmt(forecast.pressureHpa, 0, 'hPa')}${
-      trend === null ? '' : ` · ${trendArrow} ${formatSigned(trend, 1, 'hPa')} en 3 h`
+      trend === null
+        ? ''
+        : ` · ${trendArrow} ${PescaApp.i18n.t('{cambio} en 3 h', { cambio: formatSigned(trend, 1, 'hPa') })}`
     }`;
     const waterText =
       forecast.waterTemperatureC === null || forecast.waterTemperatureC === undefined
-        ? 'No disponible en esta ubicación'
+        ? PescaApp.i18n.t('No disponible en esta ubicación')
         : fmt(forecast.waterTemperatureC, 1, '°C');
 
     const rows = [
-      ['Temperatura del aire', `${fmt(forecast.airTemperatureC, 1, '°C')}`, `sensación ${fmt(forecast.apparentTemperatureC, 1, '°C')}`],
-      ['Temperatura del agua', waterText, 'modelo marino'],
-      ['Viento', windText, `ráfagas ${fmt(forecast.windGustsKmh, 0, 'km/h')}`],
-      ['Presión', pressureText, 'nivel del mar'],
-      ['Humedad', fmt(forecast.humidityPercent, 0, '%'), ''],
-      ['Nubosidad', fmt(forecast.cloudCoverPercent, 0, '%'), ''],
-      ['Precipitación', fmt(forecast.precipitationMm, 1, 'mm'), 'en la última hora'],
-      ['Amanecer · atardecer', `${formatPlaceClock(forecast.sunrise)} · ${formatPlaceClock(forecast.sunset)}`, 'hora local'],
+      [
+        PescaApp.i18n.t('Temperatura del aire'),
+        `${fmt(forecast.airTemperatureC, 1, '°C')}`,
+        PescaApp.i18n.t('sensación {valor}', { valor: fmt(forecast.apparentTemperatureC, 1, '°C') }),
+      ],
+      [PescaApp.i18n.t('Temperatura del agua'), waterText, PescaApp.i18n.t('modelo marino')],
+      [
+        PescaApp.i18n.t('Viento'),
+        windText,
+        PescaApp.i18n.t('ráfagas {valor}', { valor: fmt(forecast.windGustsKmh, 0, 'km/h') }),
+      ],
+      [PescaApp.i18n.t('Presión'), pressureText, PescaApp.i18n.t('nivel del mar')],
+      [PescaApp.i18n.t('Humedad'), fmt(forecast.humidityPercent, 0, '%'), ''],
+      [PescaApp.i18n.t('Nubosidad'), fmt(forecast.cloudCoverPercent, 0, '%'), ''],
+      [PescaApp.i18n.t('Precipitación'), fmt(forecast.precipitationMm, 1, 'mm'), PescaApp.i18n.t('en la última hora')],
+      [
+        PescaApp.i18n.t('Amanecer · atardecer'),
+        `${formatPlaceClock(forecast.sunrise)} · ${formatPlaceClock(forecast.sunset)}`,
+        PescaApp.i18n.t('hora local'),
+      ],
     ];
 
     dom.weatherBody.innerHTML = `
@@ -510,7 +547,7 @@
         <span class="weather-icon" aria-hidden="true">${condition.icon}</span>
         <div>
           <p class="big">${utils.escapeHtml(condition.label)}</p>
-          <p class="muted">Actualizado ${formatPlaceClock(forecast.observedAt)} (hora local del lugar)</p>
+          <p class="muted">${PescaApp.i18n.t('Actualizado {hora} (hora local del lugar)', { hora: formatPlaceClock(forecast.observedAt) })}</p>
         </div>
       </div>
       <dl class="data-list">
@@ -533,12 +570,15 @@
         <span class="moon-icon" aria-hidden="true">${phase.icon}</span>
         <div>
           <p class="big">${utils.escapeHtml(phase.name)}</p>
-          <p class="muted">Iluminación ${phase.illuminationPercent}% · ${fmt(phase.ageDays, 1)} días de edad</p>
+          <p class="muted">${PescaApp.i18n.t('Iluminación {iluminacion}% · {edad} días de edad', { iluminacion: phase.illuminationPercent, edad: fmt(phase.ageDays, 1) })}</p>
         </div>
       </div>
-      <p>Próxima ${utils.escapeHtml(phase.nextSyzygy.name.toLowerCase())} en ${fmt(phase.nextSyzygy.daysAway, 1)} días
-        (${utils.escapeHtml(phase.nextSyzygy.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }))}).</p>
-      <p class="fineprint">El coeficiente de marea aparece en la tarjeta de mareas.</p>`;
+      <p>${PescaApp.i18n.t('Próxima {fase} en {dias} días ({fecha}).', {
+        fase: utils.escapeHtml(phase.nextSyzygy.name.toLowerCase()),
+        dias: fmt(phase.nextSyzygy.daysAway, 1),
+        fecha: utils.escapeHtml(phase.nextSyzygy.date.toLocaleDateString(PescaApp.i18n.intlLocale(), { day: 'numeric', month: 'short' })),
+      })}</p>
+      <p class="fineprint">${PescaApp.i18n.t('El coeficiente de marea aparece en la tarjeta de mareas.')}</p>`;
   }
 
   /** Coeficiente de hoy: el de la predicción armónica si existe; si no, la estimación por fase lunar. */
@@ -572,7 +612,7 @@
     const icons = [1, 2, 3, 4, 5]
       .map((position) => `<span class="star ${position <= stars ? 'star-on' : 'star-off'}" aria-hidden="true">★</span>`)
       .join('');
-    return `<span class="stars" role="img" aria-label="${stars} de 5 estrellas">${icons}</span>`;
+    return `<span class="stars" role="img" aria-label="${PescaApp.i18n.t('{estrellas} de 5 estrellas', { estrellas: stars })}">${icons}</span>`;
   }
 
   /** Color de la puntuación según las estrellas: bajas, medias o altas. */
@@ -584,24 +624,30 @@
 
   function renderActivityCard() {
     if (!state.place) {
-      dom.activityBody.innerHTML = '<p class="muted">Define una ubicación para valorar las condiciones.</p>';
+      dom.activityBody.innerHTML = `<p class="muted">${PescaApp.i18n.t('Define una ubicación para valorar las condiciones.')}</p>`;
       return;
     }
     const rating = computeCurrentRating();
     const hourRow = state.forecast ? forecastRows(Date.now())[0] : null;
     const scenarioLine =
       hourRow && hourRow.scenarios && hourRow.scenarios.rating
-        ? `<p class="muted">En esta hora, ${scenarioStarsText(hourRow.scenarios.rating)}.</p>`
+        ? `<p class="muted">${PescaApp.i18n.t('En esta hora, {escenarios}.', { escenarios: scenarioStarsText(hourRow.scenarios.rating) })}</p>`
         : '';
     const scoreText = rating.score === null ? '—' : String(rating.score);
     const adjusted = rating.baseScore !== null && rating.baseScore !== rating.score;
+    const scoreLine = adjusted
+      ? PescaApp.i18n.t('Puntuación {puntos} de 100 (sin ajustes de seguridad: {base})', {
+          puntos: scoreText,
+          base: rating.baseScore,
+        })
+      : PescaApp.i18n.t('Puntuación {puntos} de 100', { puntos: scoreText });
     const factorsHtml = rating.factors
       .map(
         (factor) => `
         <li class="factor factor-${factor.tone}">
           <div class="factor-head">
             <span>${utils.escapeHtml(factor.label)}</span>
-            <span class="muted">${factor.score}/100 · peso ${factor.sharePercent}%</span>
+            <span class="muted">${factor.score}/100 · ${PescaApp.i18n.t('peso {peso}%', { peso: factor.sharePercent })}</span>
           </div>
           <div class="bar"><span style="width:${factor.score}%"></span></div>
           <p class="fineprint">${utils.escapeHtml(factor.explanation)}</p>
@@ -611,17 +657,17 @@
 
     dom.activityBody.innerHTML = `
       <div class="score-row">
-        <div class="score-badge ${ratingTone(rating.stars)}" aria-label="Puntuación ${scoreText} sobre 100">${scoreText}</div>
+        <div class="score-badge ${ratingTone(rating.stars)}" aria-label="${PescaApp.i18n.t('Puntuación {puntos} sobre 100', { puntos: scoreText })}">${scoreText}</div>
         <div>
           ${starsHtml(rating.stars)}
           <p class="big">${utils.escapeHtml(rating.label)}</p>
-          <p class="muted">Puntuación ${scoreText} de 100${adjusted ? ` (sin ajustes de seguridad: ${rating.baseScore})` : ''}</p>
+          <p class="muted">${scoreLine}</p>
         </div>
       </div>
       <p>${utils.escapeHtml(rating.summary)}</p>
       ${scenarioLine}
       <ul class="factor-list">${factorsHtml}</ul>
-      <p class="fineprint">Valoración orientativa a partir de presión, luna, viento y marea. No garantiza capturas ni sustituye a los avisos oficiales.</p>`;
+      <p class="fineprint">${PescaApp.i18n.t('Valoración orientativa a partir de presión, luna, viento y marea. No garantiza capturas ni sustituye a los avisos oficiales.')}</p>`;
   }
 
   // ---------------------------------------------------------------------------
@@ -629,9 +675,9 @@
   // ---------------------------------------------------------------------------
 
   const TIDE_TRENDS = {
-    rising: { arrow: '↑', text: 'subiendo' },
-    falling: { arrow: '↓', text: 'bajando' },
-    stable: { arrow: '→', text: 'estable' },
+    rising: { arrow: '↑', text: PescaApp.i18n.mark('subiendo') },
+    falling: { arrow: '↓', text: PescaApp.i18n.mark('bajando') },
+    stable: { arrow: '→', text: PescaApp.i18n.mark('estable') },
   };
 
   /** Filas de la previsión. Se recalculan al cambiar la hora o los datos, no en cada minuto. */
@@ -688,8 +734,8 @@
   /** Estrellas de los escenarios, en forma corta: "escenarios: 4–5 ★". */
   function scenarioStarsText(rating) {
     if (!rating) return '';
-    if (rating.low === rating.high) return `escenarios: ${rating.low} ★`;
-    return `escenarios: ${rating.low}–${rating.high} ★`;
+    if (rating.low === rating.high) return PescaApp.i18n.t('escenarios: {valor} ★', { valor: rating.low });
+    return PescaApp.i18n.t('escenarios: {bajo}–{alto} ★', { bajo: rating.low, alto: rating.high });
   }
 
   /** Día de la previsión en castellano. "long" para cabeceras, "short" para la lista de mejores horas. */
@@ -698,7 +744,7 @@
       style === 'short'
         ? { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }
         : { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' };
-    return new Date(`${dateKey}T12:00:00Z`).toLocaleDateString('es-ES', options);
+    return new Date(`${dateKey}T12:00:00Z`).toLocaleDateString(PescaApp.i18n.intlLocale(), options);
   }
 
   /** Una fila de la tabla: el valor central y, debajo, el margen entre escenarios. */
@@ -706,22 +752,24 @@
     const { scenarios } = row;
     const trend = row.pressureTrend3hHpa;
     const pressureNote = Number.isFinite(trend)
-      ? `<span class="fc-note">${trend > 0 ? '▲' : trend < 0 ? '▼' : '➖'} ${formatSigned(trend, 1, 'hPa')} en 3 h</span>`
+      ? `<span class="fc-note">${trend > 0 ? '▲' : trend < 0 ? '▼' : '➖'} ${PescaApp.i18n.t('{cambio} en 3 h', { cambio: formatSigned(trend, 1, 'hPa') })}</span>`
       : '';
     const tideHtml = row.tide
-      ? `<strong>${withUnit(row.tide.heightM, 2, 'm')}</strong> <span aria-label="${TIDE_TRENDS[row.tide.trend].text}">${TIDE_TRENDS[row.tide.trend].arrow}</span>`
+      ? `<strong>${withUnit(row.tide.heightM, 2, 'm')}</strong> <span aria-label="${PescaApp.i18n.t(TIDE_TRENDS[row.tide.trend].text)}">${TIDE_TRENDS[row.tide.trend].arrow}</span>`
       : '<span class="muted">—</span>';
     const approximate =
-      row.coefficientSource === hourlyForecast.COEFFICIENT_SOURCE_MOON ? ' <span class="fc-note">aprox.</span>' : '';
+      row.coefficientSource === hourlyForecast.COEFFICIENT_SOURCE_MOON
+        ? ` <span class="fc-note">${PescaApp.i18n.t('aprox.')}</span>`
+        : '';
     const waterNote = Number.isFinite(row.waterTemperatureC)
-      ? `<span class="fc-note">agua ${withUnit(row.waterTemperatureC, 1, '°C')}</span>`
+      ? `<span class="fc-note">${PescaApp.i18n.t('agua {temperatura}', { temperatura: withUnit(row.waterTemperatureC, 1, '°C') })}</span>`
       : '';
     const tempMargin = scenarios ? marginText(scenarios.temperatureC, 1, '°C') : '';
     const windMargin = scenarios ? marginText(scenarios.windSpeedKmh, 0, 'km/h') : '';
     const gustMargin = scenarios ? marginText(scenarios.windGustsKmh, 0) : '';
     const rainNote =
       scenarios && scenarios.rainChancePercent !== null
-        ? `<span class="fc-note">${scenarios.rainChancePercent} % de escenarios</span>`
+        ? `<span class="fc-note">${PescaApp.i18n.t('{porcentaje} % de escenarios', { porcentaje: scenarios.rainChancePercent })}</span>`
         : '';
     const ratingNote = scenarios ? scenarioStarsText(scenarios.rating) : '';
     const direction = Number.isFinite(row.windDirectionDeg) ? utils.cardinalDirection(row.windDirectionDeg) : '—';
@@ -729,10 +777,10 @@
 
     return `
       <tr${row.isCurrent ? ' class="is-now"' : ''}>
-        <th scope="row">${row.hourText}${row.isCurrent ? ' <span class="fc-note">ahora</span>' : ''}</th>
+        <th scope="row">${row.hourText}${row.isCurrent ? ` <span class="fc-note">${PescaApp.i18n.t('ahora')}</span>` : ''}</th>
         <td><span aria-hidden="true">${row.weather.icon}</span> ${utils.escapeHtml(row.weather.label)}</td>
         <td>${withUnit(row.airTemperatureC, 1, '°C')}${tempMargin ? `<span class="fc-note">${tempMargin}</span>` : ''}${waterNote}</td>
-        <td>${withUnit(row.windSpeedKmh, 0, 'km/h')}<span class="fc-note">${windMargin ? `${windMargin} · ` : ''}${direction}</span><span class="fc-note">ráfagas ${withUnit(row.windGustsKmh, 0, 'km/h')}${gustMargin ? ` (${gustMargin})` : ''}</span></td>
+        <td>${withUnit(row.windSpeedKmh, 0, 'km/h')}<span class="fc-note">${windMargin ? `${windMargin} · ` : ''}${direction}</span><span class="fc-note">${PescaApp.i18n.t('ráfagas {rafagas}', { rafagas: withUnit(row.windGustsKmh, 0, 'km/h') })}${gustMargin ? ` (${gustMargin})` : ''}</span></td>
         <td>${withUnit(row.pressureHpa, 0, 'hPa')}${pressureNote}</td>
         <td>${withUnit(row.precipitationMm, 1, 'mm')}${rainNote}</td>
         <td>${tideHtml}<br>${coefficientChip(row.coefficient)}${approximate}</td>
@@ -743,7 +791,7 @@
   /** Lista de las mejores horas de la previsión, o un aviso si ninguna llega a 3 estrellas. */
   function bestMomentsHtml(best) {
     if (!best.length) {
-      return `<p class="muted">Ninguna hora de las próximas ${hourlyForecast.DEFAULT_HOURS} h llega a ${hourlyForecast.BEST_MOMENTS_MIN_STARS} estrellas.</p>`;
+      return `<p class="muted">${PescaApp.i18n.t('Ninguna hora de las próximas {horas} h llega a {estrellas} estrellas.', { horas: hourlyForecast.DEFAULT_HOURS, estrellas: hourlyForecast.BEST_MOMENTS_MIN_STARS })}</p>`;
     }
     const items = best
       .map((row) => {
@@ -757,7 +805,7 @@
       .join('');
     return `
       <div class="best-moments">
-        <p><strong>Mejores momentos</strong> <span class="muted">· las ${hourlyForecast.BEST_MOMENTS_COUNT} horas con mejor valoración, separadas al menos ${hourlyForecast.BEST_MOMENTS_GAP_HOURS} h</span></p>
+        <p><strong>${PescaApp.i18n.t('Mejores momentos')}</strong> <span class="muted">· ${PescaApp.i18n.t('las {cantidad} horas con mejor valoración, separadas al menos {horas} h', { cantidad: hourlyForecast.BEST_MOMENTS_COUNT, horas: hourlyForecast.BEST_MOMENTS_GAP_HOURS })}</span></p>
         <ul>${items}</ul>
       </div>`;
   }
@@ -769,7 +817,9 @@
         row.rating.score !== null && (top === null || row.rating.score > top.rating.score) ? row : top,
       null
     );
-    const bestText = best ? `mejor hora ${best.hourText}, ${best.rating.stars} ★` : 'sin valoración';
+    const bestText = best
+      ? PescaApp.i18n.t('mejor hora {hora}, {estrellas} ★', { hora: best.hourText, estrellas: best.rating.stars })
+      : PescaApp.i18n.t('sin valoración');
     return `
       <details class="forecast-day" data-day="${day.dateKey}"${open ? ' open' : ''}>
         <summary>${utils.escapeHtml(formatForecastDay(day.dateKey))} <span class="muted">· ${bestText}</span></summary>
@@ -777,14 +827,14 @@
           <table class="forecast-table">
             <thead>
               <tr>
-                <th scope="col">Hora</th>
-                <th scope="col">Tiempo</th>
-                <th scope="col">Temp.</th>
-                <th scope="col">Viento</th>
-                <th scope="col">Presión</th>
-                <th scope="col">Lluvia</th>
-                <th scope="col">Marea</th>
-                <th scope="col">Pesca</th>
+                <th scope="col">${PescaApp.i18n.t('Hora')}</th>
+                <th scope="col">${PescaApp.i18n.t('Tiempo')}</th>
+                <th scope="col">${PescaApp.i18n.t('Temp.')}</th>
+                <th scope="col">${PescaApp.i18n.t('Viento')}</th>
+                <th scope="col">${PescaApp.i18n.t('Presión')}</th>
+                <th scope="col">${PescaApp.i18n.t('Lluvia')}</th>
+                <th scope="col">${PescaApp.i18n.t('Marea')}</th>
+                <th scope="col">${PescaApp.i18n.t('Pesca')}</th>
               </tr>
             </thead>
             <tbody>${day.rows.map((row) => forecastRowHtml(row)).join('')}</tbody>
@@ -796,21 +846,21 @@
   /** Tarjeta de previsión: una fila por hora durante 72 horas, agrupada en días desplegables. */
   function renderForecastCard() {
     if (!state.place) {
-      dom.forecastBody.innerHTML = '<p class="muted">Define una ubicación para ver la previsión por horas.</p>';
+      dom.forecastBody.innerHTML = `<p class="muted">${PescaApp.i18n.t('Define una ubicación para ver la previsión por horas.')}</p>`;
       return;
     }
     if (!state.forecast) {
       if (state.forecastError) {
         dom.forecastBody.innerHTML = renderAlert(state.forecastError, 'warning');
       } else {
-        renderLoading(dom.forecastBody, 'Consultando la previsión…');
+        renderLoading(dom.forecastBody, PescaApp.i18n.t('Consultando la previsión…'));
       }
       return;
     }
 
     const rows = forecastRows(Date.now());
     if (!rows.length) {
-      dom.forecastBody.innerHTML = renderAlert('La previsión no incluye la hora actual.', 'info');
+      dom.forecastBody.innerHTML = renderAlert(PescaApp.i18n.t('La previsión no incluye la hora actual.'), 'info');
       return;
     }
 
@@ -827,18 +877,28 @@
     }
 
     const tideNote = !state.tides
-      ? 'Sin datos de marea: la valoración usa tiempo y luna.'
+      ? PescaApp.i18n.t('Sin datos de marea: la valoración usa tiempo y luna.')
       : state.tides.method === tides.SOURCE_HARMONIC
-        ? 'Marea: predicción armónica de la estación.'
-        : 'Marea: alturas de WorldTides, solo para las próximas 33 h.';
+        ? PescaApp.i18n.t('Marea: predicción armónica de la estación.')
+        : PescaApp.i18n.t('Marea: alturas de WorldTides, solo para las próximas 33 h.');
     const scenarioNote = state.ensemble
-      ? `Margen: entre el percentil 10 y el 90 de los ${state.ensemble.members.length} escenarios del modelo ECMWF IFS (cada escenario es un miembro del conjunto), siempre con el valor central incluido.`
-      : `Sin escenarios${state.ensembleError ? ` (${utils.escapeHtml(state.ensembleError)})` : ''}: solo se muestra la previsión central.`;
+      ? PescaApp.i18n.t(
+          'Margen: entre el percentil 10 y el 90 de los {miembros} escenarios del modelo ECMWF IFS (cada escenario es un miembro del conjunto), siempre con el valor central incluido.',
+          { miembros: state.ensemble.members.length }
+        )
+      : state.ensembleError
+        ? PescaApp.i18n.t('Sin escenarios ({error}): solo se muestra la previsión central.', {
+            error: utils.escapeHtml(state.ensembleError),
+          })
+        : PescaApp.i18n.t('Sin escenarios: solo se muestra la previsión central.');
 
     dom.forecastBody.innerHTML = `
       ${bestMomentsHtml(hourlyForecast.pickBestMoments(rows))}
       ${days.map((day) => forecastDayHtml(day, forecastOpenDays.has(day.dateKey))).join('')}
-      <p class="fineprint">Valor central: previsión de Open-Meteo, una fila por hora, en la hora local del lugar. ${scenarioNote} «% de escenarios» es la parte de escenarios con al menos 0,1 mm de lluvia en esa hora. ${utils.escapeHtml(tideNote)} La valoración es orientativa: las horas con tormenta, lluvia intensa o viento fuerte se limitan por seguridad. Consulta los avisos oficiales antes de salir.</p>`;
+      <p class="fineprint">${PescaApp.i18n.t(
+        'Valor central: previsión de Open-Meteo, una fila por hora, en la hora local del lugar. {escenarios} «% de escenarios» es la parte de escenarios con al menos 0,1 mm de lluvia en esa hora. {marea} La valoración es orientativa: las horas con tormenta, lluvia intensa o viento fuerte se limitan por seguridad. Consulta los avisos oficiales antes de salir.',
+        { escenarios: scenarioNote, marea: utils.escapeHtml(tideNote) }
+      )}</p>`;
   }
 
   /** Estilo del coeficiente según su valor: vivas, media o muertas. */
@@ -853,7 +913,7 @@
     if (!daily || !daily.days.length) return '';
     const rows = daily.days
       .map((day) => {
-        const dayLabel = new Date(`${day.dateKey}T12:00:00Z`).toLocaleDateString('es-ES', {
+        const dayLabel = new Date(`${day.dateKey}T12:00:00Z`).toLocaleDateString(PescaApp.i18n.intlLocale(), {
           weekday: 'short',
           day: 'numeric',
           month: 'short',
@@ -876,10 +936,10 @@
       .join('');
     return `
       <details class="daily-table" open>
-        <summary>Tabla de mareas: próximos ${daily.days.length} días</summary>
+        <summary>${PescaApp.i18n.t('Tabla de mareas: próximos {dias} días', { dias: daily.days.length })}</summary>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Día</th><th>Coef.</th><th>Pleamares</th><th>Bajamares</th></tr></thead>
+            <thead><tr><th>${PescaApp.i18n.t('Día')}</th><th>${PescaApp.i18n.t('Coef.')}</th><th>${PescaApp.i18n.t('Pleamares')}</th><th>${PescaApp.i18n.t('Bajamares')}</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
@@ -889,7 +949,7 @@
   /** Tarjeta de mareas: estación usada, resumen, coeficiente, gráfica y tabla diaria. */
   function renderTidesCard() {
     if (!state.place) {
-      dom.tidesBody.innerHTML = '<p class="muted">Define una ubicación para ver las mareas.</p>';
+      dom.tidesBody.innerHTML = `<p class="muted">${PescaApp.i18n.t('Define una ubicación para ver las mareas.')}</p>`;
       return;
     }
 
@@ -899,7 +959,7 @@
     const coefficientNow = currentCoefficient(now);
     const coefficientHtml = `
       <div class="coefficient">
-        <span class="muted">${hasHarmonicCoefficient ? 'Coeficiente de hoy' : 'Coeficiente aprox. (fase lunar)'}</span>
+        <span class="muted">${hasHarmonicCoefficient ? PescaApp.i18n.t('Coeficiente de hoy') : PescaApp.i18n.t('Coeficiente aprox. (fase lunar)')}</span>
         <strong>${coefficientNow}</strong>
         <span>${utils.escapeHtml(tides.describeCoefficient(coefficientNow))}</span>
       </div>`;
@@ -907,13 +967,15 @@
     if (state.tidesError) {
       const needsKey = tides.getSource() === tides.SOURCE_WORLDTIDES && !tides.getApiKey();
       dom.tidesBody.innerHTML = `${renderAlert(state.tidesError, 'warning')}${
-        needsKey ? '<button type="button" class="btn btn-primary" data-action="open-settings">Configurar clave</button>' : ''
+        needsKey
+          ? `<button type="button" class="btn btn-primary" data-action="open-settings">${PescaApp.i18n.t('Configurar clave')}</button>`
+          : ''
       }${coefficientHtml}`;
       return;
     }
 
     if (!state.tides) {
-      dom.tidesBody.innerHTML = `<p class="muted loading">Calculando mareas…</p>${coefficientHtml}`;
+      dom.tidesBody.innerHTML = `<p class="muted loading">${PescaApp.i18n.t('Calculando mareas…')}</p>${coefficientHtml}`;
       return;
     }
 
@@ -929,15 +991,17 @@
     });
 
     const currentText = summary && summary.currentHeightM !== null ? fmt(summary.currentHeightM, 2, 'm') : '—';
-    const nextHighText = summary && summary.nextHigh ? formatStationDayAndClock(summary.nextHigh.ts, zone) : 'Sin dato';
-    const nextLowText = summary && summary.nextLow ? formatStationDayAndClock(summary.nextLow.ts, zone) : 'Sin dato';
+    const nextHighText =
+      summary && summary.nextHigh ? formatStationDayAndClock(summary.nextHigh.ts, zone) : PescaApp.i18n.t('Sin dato');
+    const nextLowText =
+      summary && summary.nextLow ? formatStationDayAndClock(summary.nextLow.ts, zone) : PescaApp.i18n.t('Sin dato');
 
     const stationHtml = station
       ? `<div class="station-line">
-          <p><strong>Estación:</strong> ${utils.escapeHtml(station.name)} (${fmt(station.distanceKm, 1, 'km')}) · ${utils.escapeHtml(station.source)} · ${utils.escapeHtml(station.licenseLabel)}</p>
+          <p><strong>${PescaApp.i18n.t('Estación:')}</strong> ${utils.escapeHtml(station.name)} (${fmt(station.distanceKm, 1, 'km')}) · ${utils.escapeHtml(station.source)} · ${utils.escapeHtml(station.licenseLabel)}</p>
           <p class="fineprint">${utils.escapeHtml(station.referenceLabel)}.${
             station.sourceUrl
-              ? ` <a href="${utils.escapeHtml(station.sourceUrl)}" target="_blank" rel="noopener">Ver la fuente</a>`
+              ? ` <a href="${utils.escapeHtml(station.sourceUrl)}" target="_blank" rel="noopener">${PescaApp.i18n.t('Ver la fuente')}</a>`
               : ''
           }</p>
         </div>`
@@ -945,28 +1009,37 @@
     const distanceWarning =
       station && station.distanceKm > STATION_DISTANCE_WARNING_KM
         ? renderAlert(
-            `La estación está a ${fmt(station.distanceKm, 1, 'km')}. En la costa abierta, estuarios o calas la hora y la altura pueden desviarse.`,
+            PescaApp.i18n.t(
+              'La estación está a {distancia}. En la costa abierta, estuarios o calas la hora y la altura pueden desviarse.',
+              { distancia: fmt(station.distanceKm, 1, 'km') }
+            ),
             'warning'
           )
         : '';
     const isHarmonic = state.tides.method === tides.SOURCE_HARMONIC;
     const sourceNote = isHarmonic
-      ? 'Predicción armónica: no incluye viento, presión ni oleaje, y no sustituye a las tablas oficiales. No la uses para navegar.'
-      : 'Fuente de alturas: WorldTides. Consulta las tablas oficiales para navegar o pescar en zonas peligrosas.';
+      ? PescaApp.i18n.t(
+          'Predicción armónica: no incluye viento, presión ni oleaje, y no sustituye a las tablas oficiales. No la uses para navegar.'
+        )
+      : PescaApp.i18n.t(
+          'Fuente de alturas: WorldTides. Consulta las tablas oficiales para navegar o pescar en zonas peligrosas.'
+        );
     const coefficientNote = hasHarmonicCoefficient
-      ? 'Coeficiente: amplitud del día frente a la media del año de la estación (70 = marea media). Es una estimación y puede diferir del oficial.'
-      : 'El coeficiente es una estimación por fase lunar, no el oficial.';
+      ? PescaApp.i18n.t(
+          'Coeficiente: amplitud del día frente a la media del año de la estación (70 = marea media). Es una estimación y puede diferir del oficial.'
+        )
+      : PescaApp.i18n.t('El coeficiente es una estimación por fase lunar, no el oficial.');
 
     dom.tidesBody.innerHTML = `
       ${stationHtml}
       ${distanceWarning}
       <div class="tide-summary">
-        <div class="tide-stat"><span class="muted">Altura ahora</span><strong>${currentText}</strong></div>
-        <div class="tide-stat"><span class="muted">Próxima pleamar</span><strong>${utils.escapeHtml(nextHighText)}</strong></div>
-        <div class="tide-stat"><span class="muted">Próxima bajamar</span><strong>${utils.escapeHtml(nextLowText)}</strong></div>
+        <div class="tide-stat"><span class="muted">${PescaApp.i18n.t('Altura ahora')}</span><strong>${currentText}</strong></div>
+        <div class="tide-stat"><span class="muted">${PescaApp.i18n.t('Próxima pleamar')}</span><strong>${utils.escapeHtml(nextHighText)}</strong></div>
+        <div class="tide-stat"><span class="muted">${PescaApp.i18n.t('Próxima bajamar')}</span><strong>${utils.escapeHtml(nextLowText)}</strong></div>
         ${coefficientHtml}
       </div>
-      ${geometry ? buildTideSvg(geometry, chartStart, chartEnd, zone) : renderAlert('No hay datos de altura para representar la gráfica.', 'info')}
+      ${geometry ? buildTideSvg(geometry, chartStart, chartEnd, zone) : renderAlert(PescaApp.i18n.t('No hay datos de altura para representar la gráfica.'), 'info')}
       ${renderDailyTable(state.tides.daily, zone)}
       <p class="fineprint">${utils.escapeHtml(sourceNote)} ${utils.escapeHtml(coefficientNote)}</p>`;
   }
@@ -1002,7 +1075,7 @@
 
     return `
       <figure class="tide-chart">
-        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Alturas de marea de las próximas 24 horas">
+        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${PescaApp.i18n.t('Alturas de marea de las próximas 24 horas')}">
           <polygon points="${area}" class="tide-area"/>
           <polyline points="${line}" class="tide-line"/>
           ${nowLine}
@@ -1011,7 +1084,7 @@
           <text x="4" y="${padding + 4}" class="chart-axis">${utils.escapeHtml(fmt(yMax, 1, 'm'))}</text>
           <text x="4" y="${baseY}" class="chart-axis">${utils.escapeHtml(fmt(yMin, 1, 'm'))}</text>
         </svg>
-        <figcaption class="fineprint">Línea continua: altura prevista. Línea vertical: ahora. Horas en la zona de la estación.</figcaption>
+        <figcaption class="fineprint">${PescaApp.i18n.t('Línea continua: altura prevista. Línea vertical: ahora. Horas en la zona de la estación.')}</figcaption>
       </figure>`;
   }
 
@@ -1023,8 +1096,8 @@
     const place = state.place;
     if (!place || !place.zoneId) {
       const message = place
-        ? 'No hay catálogo de especies para este lugar. Las tallas y vedas solo se comprueban en España.'
-        : 'Define una ubicación para ver las especies de la zona.';
+        ? PescaApp.i18n.t('No hay catálogo de especies para este lugar. Las tallas y vedas solo se comprueban en España.')
+        : PescaApp.i18n.t('Define una ubicación para ver las especies de la zona.');
       dom.speciesList.innerHTML = `<li class="muted">${message}</li>`;
       dom.speciesCount.textContent = '';
       return;
@@ -1035,9 +1108,12 @@
       ? speciesCatalog.searchSpecies(filter, { zoneId: place.zoneId, limit: 100 })
       : speciesCatalog.getSpeciesForZone(place.zoneId);
 
-    dom.speciesCount.textContent = `${list.length} especies en ${place.zoneName}`;
+    dom.speciesCount.textContent = PescaApp.i18n.t('{total} especies en {zona}', {
+      total: list.length,
+      zona: place.zoneName,
+    });
     if (list.length === 0) {
-      dom.speciesList.innerHTML = '<li class="muted">Ninguna especie coincide con la búsqueda.</li>';
+      dom.speciesList.innerHTML = `<li class="muted">${PescaApp.i18n.t('Ninguna especie coincide con la búsqueda.')}</li>`;
       return;
     }
 
@@ -1049,12 +1125,14 @@
     const chips = [];
     chips.push(
       minSizeCm === null
-        ? '<span class="chip chip-muted">Talla: sin dato confirmado</span>'
-        : `<span class="chip">Talla mín. ${minSizeCm} cm</span>`
+        ? `<span class="chip chip-muted">${PescaApp.i18n.t('Talla: sin dato confirmado')}</span>`
+        : `<span class="chip">${PescaApp.i18n.t('Talla mín. {talla} cm', { talla: minSizeCm })}</span>`
     );
-    if (species.protected) chips.push('<span class="chip chip-danger">Protegida</span>');
+    if (species.protected) chips.push(`<span class="chip chip-danger">${PescaApp.i18n.t('Protegida')}</span>`);
     if (species.peakMonths && species.peakMonths.length) {
-      chips.push(`<span class="chip">Pico: ${utils.escapeHtml(speciesCatalog.formatMonths(species.peakMonths))}</span>`);
+      chips.push(
+        `<span class="chip">${PescaApp.i18n.t('Pico: {meses}', { meses: utils.escapeHtml(speciesCatalog.formatMonths(species.peakMonths)) })}</span>`
+      );
     }
     return `
       <li>
@@ -1075,41 +1153,43 @@
         const zone = speciesCatalog.getZoneById(zoneId);
         const minSizeCm = validation.getMinSizeCm(species, zoneId);
         return `<tr><td>${utils.escapeHtml(zone ? zone.name : zoneId)}</td><td>${
-          minSizeCm === null ? 'Sin dato confirmado' : `${minSizeCm} cm`
+          minSizeCm === null
+            ? PescaApp.i18n.t('Sin dato confirmado')
+            : PescaApp.i18n.t('{talla} cm', { talla: minSizeCm })
         }</td></tr>`;
       })
       .join('');
     const closedHtml =
       species.closedSeasons && species.closedSeasons.length
         ? species.closedSeasons
-            .map((season) => `<li>${utils.escapeHtml(season.reason || 'Veda')}: ${utils.escapeHtml(speciesCatalog.formatMonths(season.months))}</li>`)
+            .map((season) => `<li>${utils.escapeHtml(season.reason || PescaApp.i18n.t('Veda'))}: ${utils.escapeHtml(speciesCatalog.formatMonths(season.months))}</li>`)
             .join('')
-        : '<li class="muted">No hay vedas registradas en esta base de datos. Consulta la normativa vigente.</li>';
+        : `<li class="muted">${PescaApp.i18n.t('No hay vedas registradas en esta base de datos. Consulta la normativa vigente.')}</li>`;
     const listItems = (items) => items.map((item) => `<li>${utils.escapeHtml(item)}</li>`).join('');
 
     dom.speciesDialogBody.innerHTML = `
       <h2>${utils.escapeHtml(species.commonName)}</h2>
       <p class="species-sci">${utils.escapeHtml(species.scientificName)} · ${utils.escapeHtml(species.family)}</p>
-      ${species.protected ? renderAlert(species.protectionNote || 'Especie protegida: no debe retenerse.', 'danger') : ''}
+      ${species.protected ? renderAlert(species.protectionNote || PescaApp.i18n.t('Especie protegida: no debe retenerse.'), 'danger') : ''}
       ${species.alertNote ? renderAlert(species.alertNote, 'warning') : ''}
       <dl class="data-list">
-        <div class="data-row"><dt>Hábitat</dt><dd>${utils.escapeHtml(species.habitat)}</dd></div>
-        <div class="data-row"><dt>Profundidad</dt><dd>${fmt(species.depthRangeM[0])}–${fmt(species.depthRangeM[1], 0, 'm')}</dd></div>
-        <div class="data-row"><dt>Peso medio y máximo</dt><dd>${fmt(species.averageWeightKg, 1, 'kg')} · ${fmt(species.maxWeightKg, 0, 'kg')} (orientativo)</dd></div>
-        <div class="data-row"><dt>Longitud máxima</dt><dd>${fmt(species.maxLengthCm, 0, 'cm')} (orientativo)</dd></div>
-        <div class="data-row"><dt>Periodo de mayor actividad</dt><dd>${utils.escapeHtml(speciesCatalog.formatMonths(species.peakMonths))}. ${utils.escapeHtml(species.peakNote || '')}</dd></div>
+        <div class="data-row"><dt>${PescaApp.i18n.t('Hábitat')}</dt><dd>${utils.escapeHtml(species.habitat)}</dd></div>
+        <div class="data-row"><dt>${PescaApp.i18n.t('Profundidad')}</dt><dd>${fmt(species.depthRangeM[0])}–${fmt(species.depthRangeM[1], 0, 'm')}</dd></div>
+        <div class="data-row"><dt>${PescaApp.i18n.t('Peso medio y máximo')}</dt><dd>${fmt(species.averageWeightKg, 1, 'kg')} · ${fmt(species.maxWeightKg, 0, 'kg')} ${PescaApp.i18n.t('(orientativo)')}</dd></div>
+        <div class="data-row"><dt>${PescaApp.i18n.t('Longitud máxima')}</dt><dd>${fmt(species.maxLengthCm, 0, 'cm')} ${PescaApp.i18n.t('(orientativo)')}</dd></div>
+        <div class="data-row"><dt>${PescaApp.i18n.t('Periodo de mayor actividad')}</dt><dd>${utils.escapeHtml(speciesCatalog.formatMonths(species.peakMonths))}. ${utils.escapeHtml(species.peakNote || '')}</dd></div>
       </dl>
-      <h3>Tallas mínimas de referencia</h3>
-      <div class="table-wrap"><table><thead><tr><th>Zona</th><th>Talla</th></tr></thead><tbody>${sizeRows}</tbody></table></div>
+      <h3>${PescaApp.i18n.t('Tallas mínimas de referencia')}</h3>
+      <div class="table-wrap"><table><thead><tr><th>${PescaApp.i18n.t('Zona')}</th><th>${PescaApp.i18n.t('Talla')}</th></tr></thead><tbody>${sizeRows}</tbody></table></div>
       <p class="fineprint">${utils.escapeHtml(species.minSizeNote || '')}</p>
-      <h3>Cebos recomendados</h3>
+      <h3>${PescaApp.i18n.t('Cebos recomendados')}</h3>
       <ul>${listItems(species.baits || [])}</ul>
-      <h3>Técnicas</h3>
+      <h3>${PescaApp.i18n.t('Técnicas')}</h3>
       <ul>${listItems(species.techniques || [])}</ul>
-      <h3>Vedas y restricciones</h3>
+      <h3>${PescaApp.i18n.t('Vedas y restricciones')}</h3>
       <ul>${closedHtml}</ul>
       <p>${utils.escapeHtml(species.restrictions || '')}</p>
-      <h3>Fuentes</h3>
+      <h3>${PescaApp.i18n.t('Fuentes')}</h3>
       <ul class="sources">${listItems(species.sources || [])}</ul>`;
     openDialog(dom.speciesDialog);
   }
@@ -1133,10 +1213,12 @@
 
   function renderCatchPlace() {
     if (!state.place) {
-      dom.catchPlace.textContent = 'Define primero una ubicación en la sección de arriba.';
+      dom.catchPlace.textContent = PescaApp.i18n.t('Define primero una ubicación en la sección de arriba.');
       return;
     }
-    dom.catchPlace.textContent = `Lugar de la captura: ${state.place.name}${state.place.zoneName ? ` (${state.place.zoneName})` : ''}`;
+    dom.catchPlace.textContent = state.place.zoneName
+      ? PescaApp.i18n.t('Lugar de la captura: {lugar} ({zona})', { lugar: state.place.name, zona: state.place.zoneName })
+      : PescaApp.i18n.t('Lugar de la captura: {lugar}', { lugar: state.place.name });
   }
 
   function renderCatchFormDefaults() {
@@ -1165,20 +1247,20 @@
     const errors = [];
     const dateTime = utils.parseDateTimeString(values.dateTimeText);
     if (!dateTime) {
-      errors.push('Indica la fecha y la hora de la captura.');
+      errors.push(PescaApp.i18n.t('Indica la fecha y la hora de la captura.'));
     } else if (dateTime.getTime() > Date.now() + 60 * 1000) {
-      errors.push('La fecha de la captura no puede ser futura.');
+      errors.push(PescaApp.i18n.t('La fecha de la captura no puede ser futura.'));
     }
     if (!values.speciesText) {
-      errors.push('Indica la especie.');
+      errors.push(PescaApp.i18n.t('Indica la especie.'));
     }
     const weightKg = utils.toFiniteNumber(values.weightText);
     if (values.weightText.trim() && (weightKg === null || weightKg <= 0 || weightKg > MAX_WEIGHT_KG)) {
-      errors.push(`El peso debe estar entre 0 y ${MAX_WEIGHT_KG} kg.`);
+      errors.push(PescaApp.i18n.t('El peso debe estar entre 0 y {max} kg.', { max: MAX_WEIGHT_KG }));
     }
     const lengthCm = utils.toFiniteNumber(values.lengthText);
     if (values.lengthText.trim() && (lengthCm === null || lengthCm <= 0 || lengthCm > MAX_LENGTH_CM)) {
-      errors.push(`La longitud debe estar entre 0 y ${MAX_LENGTH_CM} cm.`);
+      errors.push(PescaApp.i18n.t('La longitud debe estar entre 0 y {max} cm.', { max: MAX_LENGTH_CM }));
     }
     return errors;
   }
@@ -1188,7 +1270,7 @@
     const values = readCatchForm();
     if (!values.speciesText) {
       dom.catchAssessment.innerHTML =
-        '<ul class="alert-list"><li class="alert-item alert-info">Escribe la especie para comprobar la talla mínima y las vedas.</li></ul>';
+        `<ul class="alert-list"><li class="alert-item alert-info">${PescaApp.i18n.t('Escribe la especie para comprobar la talla mínima y las vedas.')}</li></ul>`;
       return;
     }
     const species = speciesCatalog.findSpeciesByName(values.speciesText);
@@ -1209,12 +1291,12 @@
     if (species && lengthCm !== null && weightKg === null) {
       const estimate = validation.estimateWeightKg(lengthCm, species);
       const relation = validation.getLengthWeightRelation(species);
-      estimateHtml = `<p class="estimate">Peso estimado: <strong>${fmt(estimate, 2, 'kg')}</strong>
-        <span class="fineprint">(W = a · L^b; ${utils.escapeHtml(relation.source)}. Error de ±30 % habitual.)</span></p>`;
+      estimateHtml = `<p class="estimate">${PescaApp.i18n.t('Peso estimado:')} <strong>${fmt(estimate, 2, 'kg')}</strong>
+        <span class="fineprint">${PescaApp.i18n.t('(W = a · L^b; {fuente}. Error de ±30 % habitual.)', { fuente: utils.escapeHtml(relation.source) })}</span></p>`;
     }
 
     const verdict = assessment.mustRelease
-      ? renderAlert('Esta captura debe devolverse según las comprobaciones.', 'danger')
+      ? renderAlert(PescaApp.i18n.t('Esta captura debe devolverse según las comprobaciones.'), 'danger')
       : '';
     dom.catchAssessment.innerHTML = `${verdict}<ul class="alert-list">${alertsHtml}</ul>${estimateHtml}`;
   }
@@ -1225,12 +1307,12 @@
     dom.catchPhotoPreview.hidden = true;
     dom.catchPhotoPreview.removeAttribute('src');
     if (!file) return;
-    setStatus(dom.catchStatus, 'Preparando la foto…', 'info');
+    setStatus(dom.catchStatus, PescaApp.i18n.t('Preparando la foto…'), 'info');
     try {
       state.pendingPhoto = await catchLog.resizeImageFile(file);
       dom.catchPhotoPreview.src = state.pendingPhoto;
       dom.catchPhotoPreview.hidden = false;
-      setStatus(dom.catchStatus, 'Foto lista. Se guardará con la captura.', 'ok');
+      setStatus(dom.catchStatus, PescaApp.i18n.t('Foto lista. Se guardará con la captura.'), 'ok');
     } catch (error) {
       dom.catchPhoto.value = '';
       setStatus(dom.catchStatus, utils.describeError(error), 'warning');
@@ -1254,7 +1336,7 @@
         tideWindow = await tides.getHistoricalTides(place.lat, place.lon, tides.getApiKey(), dateTime);
       } else {
         weatherData = state.forecast;
-        sourceLabel = 'Condiciones actuales';
+        sourceLabel = PescaApp.i18n.t('Condiciones actuales');
         tideWindow = state.tides;
       }
 
@@ -1265,7 +1347,10 @@
       const tide = {
         ...(tideSnapshot || { heightM: null, hoursFromExtreme: null, nextHigh: null, nextLow: null, station: null }),
         coefficient,
-        coefficientSource: harmonicCoefficient !== null ? 'predicción armónica' : 'fase lunar (aprox.)',
+        coefficientSource:
+          harmonicCoefficient !== null
+            ? PescaApp.i18n.t('predicción armónica')
+            : PescaApp.i18n.t('fase lunar (aprox.)'),
       };
 
       const tideSummary = tideWindow ? tides.summarize(tideWindow, dateTime.getTime()) : null;
@@ -1300,7 +1385,7 @@
       };
     } catch (error) {
       return {
-        source: 'No disponibles',
+        source: PescaApp.i18n.t('No disponibles'),
         error: utils.describeError(error),
         weather: null,
         moon: null,
@@ -1319,7 +1404,7 @@
       return;
     }
     if (!state.place) {
-      setStatus(dom.catchStatus, 'Define primero la ubicación de la captura.', 'warning');
+      setStatus(dom.catchStatus, PescaApp.i18n.t('Define primero la ubicación de la captura.'), 'warning');
       return;
     }
 
@@ -1328,7 +1413,7 @@
     let photoDropped = false;
     dom.catchSubmit.disabled = true;
     try {
-      setStatus(dom.catchStatus, 'Consultando las condiciones de ese momento…', 'info');
+      setStatus(dom.catchStatus, PescaApp.i18n.t('Consultando las condiciones de ese momento…'), 'info');
       const conditions = await buildCatchConditions(dateTime, values.dateTimeText);
       const record = catchLog.createRecord({
         dateTimeText: values.dateTimeText,
@@ -1362,7 +1447,7 @@
     if (!result.ok) {
       setStatus(
         dom.catchStatus,
-        'No hay espacio en el navegador para guardar la captura. Exporta y elimina capturas antiguas.',
+        PescaApp.i18n.t('No hay espacio en el navegador para guardar la captura. Exporta y elimina capturas antiguas.'),
         'warning'
       );
       return;
@@ -1371,9 +1456,13 @@
     resetCatchForm();
     renderCatchList();
     if (photoDropped) {
-      setStatus(dom.catchStatus, 'Captura guardada, pero sin foto: no hay espacio suficiente en el navegador.', 'warning');
+      setStatus(
+        dom.catchStatus,
+        PescaApp.i18n.t('Captura guardada, pero sin foto: no hay espacio suficiente en el navegador.'),
+        'warning'
+      );
     } else {
-      setStatus(dom.catchStatus, 'Captura guardada.', 'ok');
+      setStatus(dom.catchStatus, PescaApp.i18n.t('Captura guardada.'), 'ok');
     }
   }
 
@@ -1391,10 +1480,13 @@
       .loadAll()
       .slice()
       .sort((a, b) => (a.dateTime < b.dateTime ? 1 : a.dateTime > b.dateTime ? -1 : 0));
-    dom.catchCount.textContent = `${list.length} ${list.length === 1 ? 'captura guardada' : 'capturas guardadas'}`;
+    dom.catchCount.textContent =
+      list.length === 1
+        ? PescaApp.i18n.t('{total} captura guardada', { total: list.length })
+        : PescaApp.i18n.t('{total} capturas guardadas', { total: list.length });
 
     if (list.length === 0) {
-      dom.catchList.innerHTML = '<p class="muted">Todavía no hay capturas. Registra la primera en el formulario.</p>';
+      dom.catchList.innerHTML = `<p class="muted">${PescaApp.i18n.t('Todavía no hay capturas. Registra la primera en el formulario.')}</p>`;
       return;
     }
     dom.catchList.innerHTML = list.map(catchCardHtml).join('');
@@ -1402,12 +1494,21 @@
 
   /** Línea de marea de una captura: altura, estación y coeficiente con su origen. */
   function catchTideLine(tide) {
-    if (!tide) return 'Sin datos de marea';
+    if (!tide) return PescaApp.i18n.t('Sin datos de marea');
     const parts = [];
-    parts.push(tide.heightM !== null && tide.heightM !== undefined ? `Marea ${fmt(tide.heightM, 2, 'm')}` : 'Altura no disponible');
-    if (tide.station) parts.push(`estación ${tide.station.name}`);
+    parts.push(
+      tide.heightM !== null && tide.heightM !== undefined
+        ? PescaApp.i18n.t('Marea {altura}', { altura: fmt(tide.heightM, 2, 'm') })
+        : PescaApp.i18n.t('Altura no disponible')
+    );
+    if (tide.station) parts.push(PescaApp.i18n.t('estación {nombre}', { nombre: tide.station.name }));
     if (Number.isFinite(tide.coefficient)) {
-      parts.push(`coeficiente ${tide.coefficient} (${tide.coefficientSource || 'estimado'})`);
+      parts.push(
+        PescaApp.i18n.t('coeficiente {coeficiente} ({origen})', {
+          coeficiente: tide.coefficient,
+          origen: tide.coefficientSource || PescaApp.i18n.t('estimado'),
+        })
+      );
     }
     return parts.join(' · ');
   }
@@ -1415,60 +1516,67 @@
   function catchCardHtml(record) {
     const measures = [];
     if (record.weightKg !== null) measures.push(fmt(record.weightKg, 2, 'kg'));
-    if (record.estimatedWeightKg !== null) measures.push(`≈ ${fmt(record.estimatedWeightKg, 2, 'kg')} (estimado)`);
+    if (record.estimatedWeightKg !== null) {
+      measures.push(PescaApp.i18n.t('≈ {peso} (estimado)', { peso: fmt(record.estimatedWeightKg, 2, 'kg') }));
+    }
     if (record.lengthCm !== null) measures.push(fmt(record.lengthCm, 0, 'cm'));
     const badge = record.assessment && record.assessment.mustRelease
-      ? '<span class="chip chip-danger">Devolver</span>'
-      : '<span class="chip chip-ok">Cumple lo comprobado</span>';
+      ? `<span class="chip chip-danger">${PescaApp.i18n.t('Devolver')}</span>`
+      : `<span class="chip chip-ok">${PescaApp.i18n.t('Cumple lo comprobado')}</span>`;
     const issues = (record.assessment && record.assessment.alerts ? record.assessment.alerts : []).filter(
       (alert) => alert.level === 'danger' || alert.level === 'warning'
     );
     const conditions = record.conditions;
     const weatherLine = conditions && conditions.weather
-      ? `Aire ${fmt(conditions.weather.airTemperatureC, 1, '°C')} · agua ${fmt(conditions.weather.waterTemperatureC, 1, '°C')} · viento ${fmt(conditions.weather.windSpeedKmh, 0, 'km/h')} · presión ${fmt(conditions.weather.pressureHpa, 0, 'hPa')}`
-      : 'Sin datos meteorológicos';
+      ? PescaApp.i18n.t('Aire {aire} · agua {agua} · viento {viento} · presión {presion}', {
+          aire: fmt(conditions.weather.airTemperatureC, 1, '°C'),
+          agua: fmt(conditions.weather.waterTemperatureC, 1, '°C'),
+          viento: fmt(conditions.weather.windSpeedKmh, 0, 'km/h'),
+          presion: fmt(conditions.weather.pressureHpa, 0, 'hPa'),
+        })
+      : PescaApp.i18n.t('Sin datos meteorológicos');
 
     return `
       <article class="catch-card">
         <header class="catch-head">
           <div>
             <p class="catch-title">${utils.escapeHtml(record.speciesName)}</p>
-            <p class="muted">${utils.escapeHtml(formatDateTimeText(record.dateTime))} · ${utils.escapeHtml(record.place ? record.place.name : 'Lugar sin nombre')}</p>
+            <p class="muted">${utils.escapeHtml(formatDateTimeText(record.dateTime))} · ${utils.escapeHtml(record.place ? record.place.name : PescaApp.i18n.t('Lugar sin nombre'))}</p>
           </div>
           ${badge}
         </header>
-        <p>${utils.escapeHtml(measures.join(' · ') || 'Sin medidas')}</p>
-        ${record.photo ? `<img class="catch-photo" src="${utils.escapeHtml(record.photo)}" alt="Foto de la captura de ${utils.escapeHtml(record.speciesName)}">` : ''}
+        <p>${utils.escapeHtml(measures.join(' · ') || PescaApp.i18n.t('Sin medidas'))}</p>
+        ${record.photo ? `<img class="catch-photo" src="${utils.escapeHtml(record.photo)}" alt="${PescaApp.i18n.t('Foto de la captura de {especie}', { especie: utils.escapeHtml(record.speciesName) })}">` : ''}
         ${issues.length ? `<ul class="alert-list">${issues.map((alert) => `<li class="alert-item alert-${alert.level}">${utils.escapeHtml(alert.message)}</li>`).join('')}</ul>` : ''}
         <details>
-          <summary>Condiciones del momento</summary>
-          <p class="fineprint">${utils.escapeHtml(conditions ? conditions.source : 'Sin origen')}</p>
+          <summary>${PescaApp.i18n.t('Condiciones del momento')}</summary>
+          <p class="fineprint">${utils.escapeHtml(conditions ? conditions.source : PescaApp.i18n.t('Sin origen'))}</p>
           <p>${utils.escapeHtml(weatherLine)}</p>
-          <p>${utils.escapeHtml(catchTideLine(conditions ? conditions.tide : null))}${conditions && conditions.moon ? ` · Luna: ${utils.escapeHtml(conditions.moon.name)}` : ''}</p>
-          ${conditions && conditions.activity && conditions.activity.score !== null ? `<p>Índice de actividad: ${conditions.activity.score}/100 (${utils.escapeHtml(conditions.activity.level)})</p>` : ''}
+          <p>${utils.escapeHtml(catchTideLine(conditions ? conditions.tide : null))}${conditions && conditions.moon ? ` · ${PescaApp.i18n.t('Luna: {fase}', { fase: utils.escapeHtml(conditions.moon.name) })}` : ''}</p>
+          ${conditions && conditions.activity && conditions.activity.score !== null ? `<p>${PescaApp.i18n.t('Índice de actividad: {puntos}/100 ({nivel})', { puntos: conditions.activity.score, nivel: utils.escapeHtml(conditions.activity.level) })}</p>` : ''}
           ${conditions && conditions.error ? renderAlert(conditions.error, 'warning') : ''}
         </details>
-        ${record.bait || record.technique || record.notes ? `<p class="fineprint">${utils.escapeHtml([record.bait && `Cebo: ${record.bait}`, record.technique && `Técnica: ${record.technique}`, record.notes && `Notas: ${record.notes}`].filter(Boolean).join(' · '))}</p>` : ''}
+        ${record.bait || record.technique || record.notes ? `<p class="fineprint">${utils.escapeHtml([record.bait && PescaApp.i18n.t('Cebo: {valor}', { valor: record.bait }), record.technique && PescaApp.i18n.t('Técnica: {valor}', { valor: record.technique }), record.notes && PescaApp.i18n.t('Notas: {valor}', { valor: record.notes })].filter(Boolean).join(' · '))}</p>` : ''}
         <footer class="catch-foot">
-          <button type="button" class="btn btn-ghost" data-action="delete-catch" data-catch-id="${utils.escapeHtml(record.id)}">Eliminar</button>
+          <button type="button" class="btn btn-ghost" data-action="delete-catch" data-catch-id="${utils.escapeHtml(record.id)}">${PescaApp.i18n.t('Eliminar')}</button>
         </footer>
       </article>`;
   }
 
   function deleteCatch(catchId) {
-    if (!root.confirm('¿Eliminar esta captura? No se puede deshacer.')) return;
+    if (!root.confirm(PescaApp.i18n.t('¿Eliminar esta captura? No se puede deshacer.'))) return;
     if (catchLog.deleteCatch(catchId)) {
       renderCatchList();
-      setStatus(dom.logStatus, 'Captura eliminada.', 'ok');
+      setStatus(dom.logStatus, PescaApp.i18n.t('Captura eliminada.'), 'ok');
     } else {
-      setStatus(dom.logStatus, 'No se pudo eliminar la captura.', 'warning');
+      setStatus(dom.logStatus, PescaApp.i18n.t('No se pudo eliminar la captura.'), 'warning');
     }
   }
 
   function exportCatches(format) {
     const list = catchLog.loadAll();
     if (list.length === 0) {
-      setStatus(dom.logStatus, 'No hay capturas para exportar.', 'warning');
+      setStatus(dom.logStatus, PescaApp.i18n.t('No hay capturas para exportar.'), 'warning');
       return;
     }
     const stamp = utils.toDateString(new Date());
@@ -1477,7 +1585,11 @@
     } else {
       utils.downloadText(`pescaapp-capturas-${stamp}.csv`, catchLog.toCsv(list), 'text/csv;charset=utf-8');
     }
-    setStatus(dom.logStatus, `Exportación en ${format === 'json' ? 'JSON' : 'CSV'} preparada.`, 'ok');
+    setStatus(
+      dom.logStatus,
+      PescaApp.i18n.t('Exportación en {formato} preparada.', { formato: format === 'json' ? 'JSON' : 'CSV' }),
+      'ok'
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -1505,7 +1617,7 @@
     tides.saveApiKey(key);
     setStatus(
       dom.settingsTidesStatus,
-      key ? 'Clave guardada en este navegador.' : 'Clave eliminada.',
+      key ? PescaApp.i18n.t('Clave guardada en este navegador.') : PescaApp.i18n.t('Clave eliminada.'),
       'ok'
     );
     if (state.place) {
@@ -1514,7 +1626,7 @@
   }
 
   function clearAllData() {
-    if (!root.confirm('Se borrarán todas las capturas, la ubicación y la caché de este navegador. ¿Continuar?')) return;
+    if (!root.confirm(PescaApp.i18n.t('Se borrarán todas las capturas, la ubicación y la caché de este navegador. ¿Continuar?'))) return;
     utils.storage.clearAll();
     root.location.reload();
   }
