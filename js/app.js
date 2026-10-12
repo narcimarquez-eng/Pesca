@@ -1336,7 +1336,7 @@
         tideWindow = await tides.getHistoricalTides(place.lat, place.lon, tides.getApiKey(), dateTime);
       } else {
         weatherData = state.forecast;
-        sourceLabel = PescaApp.i18n.t('Condiciones actuales');
+        sourceLabel = 'current';
         tideWindow = state.tides;
       }
 
@@ -1348,9 +1348,7 @@
         ...(tideSnapshot || { heightM: null, hoursFromExtreme: null, nextHigh: null, nextLow: null, station: null }),
         coefficient,
         coefficientSource:
-          harmonicCoefficient !== null
-            ? PescaApp.i18n.t('predicción armónica')
-            : PescaApp.i18n.t('fase lunar (aprox.)'),
+          harmonicCoefficient !== null ? PescaApp.tides.COEFFICIENT_SOURCE.HARMONIC : PescaApp.tides.COEFFICIENT_SOURCE.MOON,
       };
 
       const tideSummary = tideWindow ? tides.summarize(tideWindow, dateTime.getTime()) : null;
@@ -1385,7 +1383,7 @@
       };
     } catch (error) {
       return {
-        source: PescaApp.i18n.t('No disponibles'),
+        source: 'unavailable',
         error: utils.describeError(error),
         weather: null,
         moon: null,
@@ -1506,7 +1504,7 @@
       parts.push(
         PescaApp.i18n.t('coeficiente {coeficiente} ({origen})', {
           coeficiente: tide.coefficient,
-          origen: tide.coefficientSource || PescaApp.i18n.t('estimado'),
+          origen: PescaApp.tides.describeCoefficientSource(tide.coefficientSource) || PescaApp.i18n.t('estimado'),
         })
       );
     }
@@ -1540,17 +1538,17 @@
       <article class="catch-card">
         <header class="catch-head">
           <div>
-            <p class="catch-title">${utils.escapeHtml(record.speciesName)}</p>
+            <p class="catch-title">${utils.escapeHtml(record.speciesName || PescaApp.i18n.t('Sin especificar'))}</p>
             <p class="muted">${utils.escapeHtml(formatDateTimeText(record.dateTime))} · ${utils.escapeHtml(record.place ? record.place.name : PescaApp.i18n.t('Lugar sin nombre'))}</p>
           </div>
           ${badge}
         </header>
         <p>${utils.escapeHtml(measures.join(' · ') || PescaApp.i18n.t('Sin medidas'))}</p>
-        ${record.photo ? `<img class="catch-photo" src="${utils.escapeHtml(record.photo)}" alt="${PescaApp.i18n.t('Foto de la captura de {especie}', { especie: utils.escapeHtml(record.speciesName) })}">` : ''}
+        ${record.photo ? `<img class="catch-photo" src="${utils.escapeHtml(record.photo)}" alt="${PescaApp.i18n.t('Foto de la captura de {especie}', { especie: utils.escapeHtml(record.speciesName || PescaApp.i18n.t('Sin especificar')) })}">` : ''}
         ${issues.length ? `<ul class="alert-list">${issues.map((alert) => `<li class="alert-item alert-${alert.level}">${utils.escapeHtml(alert.message)}</li>`).join('')}</ul>` : ''}
         <details>
           <summary>${PescaApp.i18n.t('Condiciones del momento')}</summary>
-          <p class="fineprint">${utils.escapeHtml(conditions ? conditions.source : PescaApp.i18n.t('Sin origen'))}</p>
+          <p class="fineprint">${utils.escapeHtml(PescaApp.weather.describeConditionsSource(conditions ? conditions.source : null) || PescaApp.i18n.t('Sin origen'))}</p>
           <p>${utils.escapeHtml(weatherLine)}</p>
           <p>${utils.escapeHtml(catchTideLine(conditions ? conditions.tide : null))}${conditions && conditions.moon ? ` · ${PescaApp.i18n.t('Luna: {fase}', { fase: utils.escapeHtml(conditions.moon.name) })}` : ''}</p>
           ${conditions && conditions.activity && conditions.activity.score !== null ? `<p>${PescaApp.i18n.t('Índice de actividad: {puntos}/100 ({nivel})', { puntos: conditions.activity.score, nivel: utils.escapeHtml(conditions.activity.level) })}</p>` : ''}

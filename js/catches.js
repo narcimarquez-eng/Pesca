@@ -17,7 +17,7 @@
   const CSV_COLUMNS = [
     { header: PescaApp.i18n.mark('ID'), value: (record) => record.id },
     { header: PescaApp.i18n.mark('Fecha y hora'), value: (record) => record.dateTime },
-    { header: PescaApp.i18n.mark('Especie'), value: (record) => record.speciesName },
+    { header: PescaApp.i18n.mark('Especie'), value: (record) => record.speciesName || PescaApp.i18n.t('Sin especificar') },
     { header: PescaApp.i18n.mark('Nombre científico'), value: (record) => record.scientificName },
     { header: PescaApp.i18n.mark('Lugar'), value: (record) => record.place && record.place.name },
     { header: PescaApp.i18n.mark('Zona'), value: (record) => record.zoneId },
@@ -40,9 +40,9 @@
     { header: PescaApp.i18n.mark('Fase lunar'), value: (record) => record.conditions && record.conditions.moon && record.conditions.moon.name },
     { header: PescaApp.i18n.mark('Altura de marea (m)'), value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.heightM },
     { header: PescaApp.i18n.mark('Coeficiente de marea'), value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.coefficient },
-    { header: PescaApp.i18n.mark('Origen del coeficiente'), value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.coefficientSource },
+    { header: PescaApp.i18n.mark('Origen del coeficiente'), value: (record) => record.conditions && record.conditions.tide && PescaApp.tides.describeCoefficientSource(record.conditions.tide.coefficientSource) },
     { header: PescaApp.i18n.mark('Índice de actividad'), value: (record) => record.conditions && record.conditions.activity && record.conditions.activity.score },
-    { header: PescaApp.i18n.mark('Origen de las condiciones'), value: (record) => record.conditions && record.conditions.source },
+    { header: PescaApp.i18n.mark('Origen de las condiciones'), value: (record) => record.conditions && PescaApp.weather.describeConditionsSource(record.conditions.source) },
   ];
 
   /** Lee todas las capturas guardadas. Devuelve una lista vacía si no hay datos válidos. */
@@ -91,7 +91,7 @@
       savedAt: new Date().toISOString(),
       dateTime: input.dateTimeText,
       speciesId: species ? species.id : null,
-      speciesName: species ? species.commonName : cleanText(input.speciesText) || PescaApp.i18n.t('Sin especificar'),
+      speciesName: species ? species.commonName : cleanText(input.speciesText) || null,
       scientificName: species ? species.scientificName : null,
       zoneId: input.zoneId || null,
       place: input.place

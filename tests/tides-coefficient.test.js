@@ -127,9 +127,18 @@ test('buildTideSnapshot toma el coeficiente armónico cuando la ventana lo trae'
   };
   const snapshot = tides.buildTideSnapshot(tideWindow, now);
   assert.equal(snapshot.coefficient, 88);
-  assert.equal(snapshot.coefficientSource, 'predicción armónica');
+  assert.equal(snapshot.coefficientSource, 'harmonic');
 
   const withoutCoefficient = tides.buildTideSnapshot({ ...tideWindow, coefficient: undefined }, now);
   assert.equal(withoutCoefficient.coefficient, null);
   assert.equal(withoutCoefficient.coefficientSource, null);
+});
+
+test('la fuente del coeficiente se guarda como código y su texto se traduce al mostrarlo', () => {
+  assert.equal(tides.COEFFICIENT_SOURCE.HARMONIC, 'harmonic');
+  assert.equal(tides.describeCoefficientSource('harmonic'), 'predicción armónica');
+  assert.equal(tides.describeCoefficientSource('predicción armónica'), 'predicción armónica', 'registros antiguos');
+  assert.equal(tides.describeCoefficientSource('moon'), 'fase lunar (aprox.)');
+  assert.equal(tides.describeCoefficientSource('fase lunar (aprox.)'), 'fase lunar (aprox.)');
+  assert.equal(tides.describeCoefficientSource(null), null);
 });

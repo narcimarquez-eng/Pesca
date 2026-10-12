@@ -437,7 +437,7 @@
           past_days: pastDays,
           forecast_days: 1,
         }),
-        source: PescaApp.i18n.t('Open-Meteo (datos recientes)'),
+        source: 'recent',
       };
     }
 
@@ -447,7 +447,7 @@
         start_date: utils.shiftDateString(dayText, -1),
         end_date: dayText,
       }),
-      source: PescaApp.i18n.t('Open-Meteo Historical (archivo)'),
+      source: 'archive',
     };
   }
 
@@ -500,6 +500,20 @@
     return normalizeHistorySnapshot(json, hourKey, request.source);
   }
 
+  /** Origen de las condiciones de una captura, en el idioma activo. Acepta los códigos y los textos antiguos. */
+  function describeConditionsSource(source) {
+    const labels = {
+      current: 'Condiciones actuales',
+      recent: 'Open-Meteo (datos recientes)',
+      archive: 'Open-Meteo Historical (archivo)',
+      unavailable: 'No disponibles',
+    };
+    if (typeof source === 'string' && Object.prototype.hasOwnProperty.call(labels, source)) {
+      return PescaApp.i18n.t(labels[source]);
+    }
+    return source || null;
+  }
+
   PescaApp.weather = Object.freeze({
     CURRENT_VARIABLES,
     FORECAST_HOURLY_VARIABLES,
@@ -511,6 +525,7 @@
     localTimeToMs,
     computePressureTrend,
     describeWeatherCode,
+    describeConditionsSource,
     buildForecastUrl,
     buildMarineUrl,
     ENSEMBLE_MODEL,

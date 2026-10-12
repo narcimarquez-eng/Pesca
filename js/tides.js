@@ -39,6 +39,9 @@
   const DAILY_TABLE_DAYS = 7;
   const REFERENCE_SPAN_DAYS = 365;
 
+  /** Fuente del coeficiente. Se guarda como código en los registros; el texto se traduce al mostrarlo. */
+  const COEFFICIENT_SOURCE = Object.freeze({ HARMONIC: 'harmonic', MOON: 'moon' });
+
   /** Ventana de la vista en vivo: 3 h de pasado y 33 h de futuro. */
   const LIVE_PAST_MS = 3 * HOUR_MS;
   const LIVE_FUTURE_MS = 33 * HOUR_MS;
@@ -737,7 +740,7 @@
       nextHigh: summary.nextHigh ? { ts: summary.nextHigh.ts, height: summary.nextHigh.height } : null,
       nextLow: summary.nextLow ? { ts: summary.nextLow.ts, height: summary.nextLow.height } : null,
       coefficient: hasCoefficient ? tides.coefficient : null,
-      coefficientSource: hasCoefficient ? t('predicción armónica') : null,
+      coefficientSource: hasCoefficient ? COEFFICIENT_SOURCE.HARMONIC : null,
       station: tides.station
         ? {
             name: tides.station.name,
@@ -749,7 +752,21 @@
     };
   }
 
+  /**
+   * Texto de la fuente del coeficiente en el idioma activo. Acepta los códigos y los textos
+   * en castellano que tenían los registros antiguos.
+   */
+  function describeCoefficientSource(source) {
+    if (source === COEFFICIENT_SOURCE.HARMONIC || source === 'predicción armónica') return t('predicción armónica');
+    if (source === COEFFICIENT_SOURCE.MOON || source === 'fase lunar (aprox.)' || source === 'estimación por fase lunar') {
+      return t('fase lunar (aprox.)');
+    }
+    return null;
+  }
+
   PescaApp.tides = Object.freeze({
+    COEFFICIENT_SOURCE,
+    describeCoefficientSource,
     COEFFICIENT_LAG_DAYS,
     COEFFICIENT_SCALE,
     DAILY_TABLE_DAYS,

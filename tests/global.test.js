@@ -43,3 +43,14 @@ test('sin referencia, la captura no recibe alertas de talla, veda ni protección
   assert.equal(result.mustRelease, false);
   assert.equal(result.minSizeCm, null);
 });
+
+test('el origen de las condiciones se guarda como código y su texto se traduce al mostrarlo', () => {
+  const { weather } = App;
+  assert.equal(weather.describeConditionsSource('current'), 'Condiciones actuales');
+  assert.equal(weather.describeConditionsSource('recent'), 'Open-Meteo (datos recientes)');
+  assert.equal(weather.describeConditionsSource('archive'), 'Open-Meteo Historical (archivo)');
+  assert.equal(weather.describeConditionsSource('unavailable'), 'No disponibles');
+  assert.equal(weather.describeConditionsSource('Texto antiguo'), 'Texto antiguo', 'los registros antiguos se muestran tal cual');
+  assert.equal(weather.describeConditionsSource('constructor'), 'constructor', 'una clave del prototipo no cuenta como código');
+  assert.equal(weather.describeConditionsSource(null), null);
+});
