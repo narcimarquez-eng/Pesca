@@ -24,6 +24,7 @@
   const CLOCK_INTERVAL_MS = 60 * 1000;
   const CHART_PAST_MS = 3 * 60 * 60 * 1000;
   const CHART_FUTURE_MS = 21 * 60 * 60 * 1000;
+  const TICK_STEP_MS = 3 * 60 * 60 * 1000;
   /** A partir de esta distancia a la estación de marea se avisa de que la predicción puede desviarse. */
   const STATION_DISTANCE_WARNING_KM = 20;
 
@@ -149,20 +150,35 @@
     return `${sign}${utils.formatNumber(value, decimals, unit)}`;
   }
 
-  /** Hora "HH:MM" de un instante (milisegundos). */
+  /** Hora "HH:MM" de un instante (milisegundos), en la hora del dispositivo. */
   function formatClock(ts) {
     return new Date(ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  /** Hora "HH:MM" de un instante en la zona horaria de la estación (o la del dispositivo). */
+  function formatStationClock(ts, timeZone) {
+    return new Date(ts).toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: tides.safeTimeZone(timeZone),
+    });
+  }
+
+  /** Día y hora legibles en la zona horaria de la estación. */
+  function formatStationDayAndClock(ts, timeZone) {
+    const date = new Date(ts);
+    const dayText = date.toLocaleDateString('es-ES', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      timeZone: tides.safeTimeZone(timeZone),
+    });
+    return `${dayText} ${formatStationClock(ts, timeZone)}`;
   }
 
   /** Hora "HH:MM" de un texto "YYYY-MM-DDTHH:MM" en la hora local del lugar. */
   function formatPlaceClock(text) {
     return typeof text === 'string' && text.length >= 16 ? text.slice(11, 16) : '—';
-  }
-
-  /** Fecha y hora legibles para un instante. */
-  function formatDayAndClock(ts) {
-    const date = new Date(ts);
-    return `${date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} ${formatClock(ts)}`;
   }
 
   /** Fecha y hora legibles para un texto "YYYY-MM-DDTHH:MM". */
@@ -176,6 +192,11 @@
       hour: '2-digit',
       minute: '2-digit',
     });
+  }
+
+  /** Zona horaria de la estación de marea activa, o undefined si no hay estación. */
+  function activeTideTimeZone() {
+    return state.tides && state.tides.station ? state.tides.station.timeZone : undefined;
   }
 
   // ---------------------------------------------------------------------------
@@ -468,6 +489,13 @@
       <p class="fineprint">El coeficiente de marea aparece en la tarjeta de mareas.</p>`;
   }
 
+  /** Coeficiente de hoy: el de la predicción armónica si existe; si no, la estimación por fase lunar. */
+  function currentCoefficient(now = new Date()) {
+    return state.tides && Number.isFinite(state.tides.coefficient)
+      ? state.tides.coefficient
+      : tides.estimateCoefficient(now);
+  }
+
   /** Calcula el índice con los datos actuales de tiempo, luna y marea. */
   function computeCurrentActivity(now = new Date()) {
     const phase = moon.getMoonPhase(now);
@@ -478,7 +506,7 @@
       moonDistanceToSyzygy: phase.distanceToSyzygy,
       windSpeedKmh: state.forecast ? state.forecast.windSpeedKmh : null,
       hoursFromTideExtreme: tideSummary ? tideSummary.hoursFromExtreme : null,
-      tideCoefficient: tides.estimateCoefficient(now),
+      tideCoefficient: currentCoefficient(now),
     });
   }
 
@@ -516,7 +544,52 @@
       <p class="fineprint">Heurística orientativa: combina presión, luna, viento y marea. No garantiza capturas.</p>`;
   }
 
-  /** Tarjeta de mareas: estación usada, resumen, gráfica y tabla de extremos. */
+  /** Estilo del coeficiente según su valor: vivas, media o muertas. */
+  function coefficientChip(value) {
+    if (!Number.isFinite(value)) return '<span class="muted">—</span>';
+    const level = value >= 95 ? 'vivas' : value <= 45 ? 'muertas' : 'media';
+    return `<span class="coef coef-${level}">${value}</span>`;
+  }
+
+  /** Tabla de los próximos días: coeficiente, pleamares y bajamares en la hora de la estación. */
+  function renderDailyTable(daily, timeZone) {
+    if (!daily || !daily.days.length) return '';
+    const rows = daily.days
+      .map((day) => {
+        const dayLabel = new Date(`${day.dateKey}T12:00:00Z`).toLocaleDateString('es-ES', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          timeZone: 'UTC',
+        });
+        const listFor = (type) => {
+          const items = day.extremes
+            .filter((extreme) => extreme.type === type)
+            .map((extreme) => `${formatStationClock(extreme.ts, timeZone)} · ${fmt(extreme.height, 2)}\u00a0m`);
+          return items.length ? items.map((item) => utils.escapeHtml(item)).join('<br>') : '—';
+        };
+        return `
+        <tr>
+          <td>${utils.escapeHtml(dayLabel)}</td>
+          <td>${coefficientChip(day.coefficient)}</td>
+          <td>${listFor('high')}</td>
+          <td>${listFor('low')}</td>
+        </tr>`;
+      })
+      .join('');
+    return `
+      <details class="daily-table" open>
+        <summary>Tabla de mareas: próximos ${daily.days.length} días</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Día</th><th>Coef.</th><th>Pleamares</th><th>Bajamares</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </details>`;
+  }
+
+  /** Tarjeta de mareas: estación usada, resumen, coeficiente, gráfica y tabla diaria. */
   function renderTidesCard() {
     if (!state.place) {
       dom.tidesBody.innerHTML = '<p class="muted">Define una ubicación para ver las mareas.</p>';
@@ -525,12 +598,13 @@
 
     const now = new Date();
     const nowMs = now.getTime();
-    const coefficient = tides.estimateCoefficient(now);
+    const hasHarmonicCoefficient = state.tides && Number.isFinite(state.tides.coefficient);
+    const coefficientNow = currentCoefficient(now);
     const coefficientHtml = `
       <div class="coefficient">
-        <span class="muted">Coeficiente de marea (aprox.)</span>
-        <strong>${coefficient}</strong>
-        <span>${utils.escapeHtml(tides.describeCoefficient(coefficient))}</span>
+        <span class="muted">${hasHarmonicCoefficient ? 'Coeficiente de hoy' : 'Coeficiente aprox. (fase lunar)'}</span>
+        <strong>${coefficientNow}</strong>
+        <span>${utils.escapeHtml(tides.describeCoefficient(coefficientNow))}</span>
       </div>`;
 
     if (state.tidesError) {
@@ -546,6 +620,7 @@
       return;
     }
 
+    const zone = activeTideTimeZone();
     const summary = tides.summarize(state.tides, nowMs);
     const station = state.tides.station;
     const chartStart = nowMs - CHART_PAST_MS;
@@ -555,21 +630,10 @@
       endMs: chartEnd,
       nowMs,
     });
-    const nextRows = state.tides.extremes
-      .filter((extreme) => extreme.ts >= nowMs && extreme.ts <= chartEnd)
-      .map(
-        (extreme) => `
-        <tr>
-          <td>${extreme.type === 'high' ? 'Pleamar' : 'Bajamar'}</td>
-          <td>${utils.escapeHtml(formatDayAndClock(extreme.ts))}</td>
-          <td>${fmt(extreme.height, 2, 'm')}</td>
-        </tr>`
-      )
-      .join('');
 
     const currentText = summary && summary.currentHeightM !== null ? fmt(summary.currentHeightM, 2, 'm') : '—';
-    const nextHighText = summary && summary.nextHigh ? formatDayAndClock(summary.nextHigh.ts) : 'Sin dato';
-    const nextLowText = summary && summary.nextLow ? formatDayAndClock(summary.nextLow.ts) : 'Sin dato';
+    const nextHighText = summary && summary.nextHigh ? formatStationDayAndClock(summary.nextHigh.ts, zone) : 'Sin dato';
+    const nextLowText = summary && summary.nextLow ? formatStationDayAndClock(summary.nextLow.ts, zone) : 'Sin dato';
 
     const stationHtml = station
       ? `<div class="station-line">
@@ -588,10 +652,13 @@
             'warning'
           )
         : '';
-    const footnote =
-      state.tides.method === tides.SOURCE_HARMONIC
-        ? 'Predicción armónica: no incluye viento, presión ni oleaje, y no sustituye a las tablas oficiales. No la uses para navegar.'
-        : 'Fuente de alturas: WorldTides. Consulta las tablas oficiales para navegar o pescar en zonas peligrosas.';
+    const isHarmonic = state.tides.method === tides.SOURCE_HARMONIC;
+    const sourceNote = isHarmonic
+      ? 'Predicción armónica: no incluye viento, presión ni oleaje, y no sustituye a las tablas oficiales. No la uses para navegar.'
+      : 'Fuente de alturas: WorldTides. Consulta las tablas oficiales para navegar o pescar en zonas peligrosas.';
+    const coefficientNote = hasHarmonicCoefficient
+      ? 'Coeficiente: amplitud del día frente a la media del año de la estación (70 = marea media). Es una estimación y puede diferir del oficial.'
+      : 'El coeficiente es una estimación por fase lunar, no el oficial.';
 
     dom.tidesBody.innerHTML = `
       ${stationHtml}
@@ -602,20 +669,13 @@
         <div class="tide-stat"><span class="muted">Próxima bajamar</span><strong>${utils.escapeHtml(nextLowText)}</strong></div>
         ${coefficientHtml}
       </div>
-      ${geometry ? buildTideSvg(geometry, chartStart, chartEnd) : renderAlert('No hay datos de altura para representar la gráfica.', 'info')}
-      <details class="extremes">
-        <summary>Pleamares y bajamares de las próximas 24 horas</summary>
-        ${
-          nextRows
-            ? `<div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Fecha y hora</th><th>Altura</th></tr></thead><tbody>${nextRows}</tbody></table></div>`
-            : '<p class="muted">No hay extremos previstos en las próximas 24 horas.</p>'
-        }
-      </details>
-      <p class="fineprint">${utils.escapeHtml(footnote)} El coeficiente es una estimación por fase lunar, no el oficial.</p>`;
+      ${geometry ? buildTideSvg(geometry, chartStart, chartEnd, zone) : renderAlert('No hay datos de altura para representar la gráfica.', 'info')}
+      ${renderDailyTable(state.tides.daily, zone)}
+      <p class="fineprint">${utils.escapeHtml(sourceNote)} ${utils.escapeHtml(coefficientNote)}</p>`;
   }
 
-  /** SVG de la gráfica de mareas. Todos los valores son numéricos o texto escapado. */
-  function buildTideSvg(geometry, startMs, endMs) {
+  /** SVG de la gráfica de mareas. Las horas se muestran en la zona de la estación. */
+  function buildTideSvg(geometry, startMs, endMs, timeZone) {
     const { width, height, padding, points, extremes, nowX, yMin, yMax } = geometry;
     const xOf = (ts) => padding + ((ts - startMs) / (endMs - startMs)) * (width - 2 * padding);
     const baseY = height - padding;
@@ -626,17 +686,15 @@
       .map((extreme) => {
         const labelY = extreme.type === 'high' ? extreme.y - 10 : extreme.y + 16;
         return `<circle cx="${extreme.x.toFixed(1)}" cy="${extreme.y.toFixed(1)}" r="4" class="${extreme.type === 'high' ? 'marker-high' : 'marker-low'}"/>
-          <text x="${extreme.x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" class="chart-label">${utils.escapeHtml(formatClock(extreme.ts))}</text>`;
+          <text x="${extreme.x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" class="chart-label">${utils.escapeHtml(formatStationClock(extreme.ts, timeZone))}</text>`;
       })
       .join('');
 
     const ticks = [];
-    const firstTick = new Date(startMs);
-    firstTick.setMinutes(0, 0, 0);
-    for (let ts = firstTick.getTime(); ts <= endMs; ts += 3 * 60 * 60 * 1000) {
-      if (ts < startMs) continue;
+    const firstTick = Math.ceil(startMs / (60 * 60 * 1000)) * (60 * 60 * 1000);
+    for (let ts = firstTick; ts <= endMs; ts += TICK_STEP_MS) {
       ticks.push(
-        `<text x="${xOf(ts).toFixed(1)}" y="${height - 8}" text-anchor="middle" class="chart-axis">${utils.escapeHtml(formatClock(ts))}</text>`
+        `<text x="${xOf(ts).toFixed(1)}" y="${height - 8}" text-anchor="middle" class="chart-axis">${utils.escapeHtml(formatStationClock(ts, timeZone))}</text>`
       );
     }
 
@@ -656,7 +714,7 @@
           <text x="4" y="${padding + 4}" class="chart-axis">${utils.escapeHtml(fmt(yMax, 1, 'm'))}</text>
           <text x="4" y="${baseY}" class="chart-axis">${utils.escapeHtml(fmt(yMin, 1, 'm'))}</text>
         </svg>
-        <figcaption class="fineprint">Línea continua: altura prevista. Línea vertical: ahora.</figcaption>
+        <figcaption class="fineprint">Línea continua: altura prevista. Línea vertical: ahora. Horas en la zona de la estación.</figcaption>
       </figure>`;
   }
 
@@ -898,10 +956,14 @@
       }
 
       const moonPhase = moon.getMoonPhase(dateTime);
-      const coefficient = tides.estimateCoefficient(dateTime);
-      const tideSnapshot = tideWindow
-        ? tides.buildTideSnapshot(tideWindow, dateTime.getTime(), coefficient)
-        : { heightM: null, hoursFromExtreme: null, nextHigh: null, nextLow: null, coefficient, station: null };
+      const tideSnapshot = tideWindow ? tides.buildTideSnapshot(tideWindow, dateTime.getTime()) : null;
+      const harmonicCoefficient = tideSnapshot ? tideSnapshot.coefficient : null;
+      const coefficient = harmonicCoefficient !== null ? harmonicCoefficient : tides.estimateCoefficient(dateTime);
+      const tide = {
+        ...(tideSnapshot || { heightM: null, hoursFromExtreme: null, nextHigh: null, nextLow: null, station: null }),
+        coefficient,
+        coefficientSource: harmonicCoefficient !== null ? 'predicción armónica' : 'fase lunar (aprox.)',
+      };
 
       const tideSummary = tideWindow ? tides.summarize(tideWindow, dateTime.getTime()) : null;
       const activityResult = activity.computeActivityIndex({
@@ -930,7 +992,7 @@
             }
           : null,
         moon: { name: moonPhase.name, illuminationPercent: moonPhase.illuminationPercent },
-        tide: tideSnapshot,
+        tide,
         activity: { score: activityResult.score, level: activityResult.level },
       };
     } catch (error) {
@@ -1035,6 +1097,18 @@
     dom.catchList.innerHTML = list.map(catchCardHtml).join('');
   }
 
+  /** Línea de marea de una captura: altura, estación y coeficiente con su origen. */
+  function catchTideLine(tide) {
+    if (!tide) return 'Sin datos de marea';
+    const parts = [];
+    parts.push(tide.heightM !== null && tide.heightM !== undefined ? `Marea ${fmt(tide.heightM, 2, 'm')}` : 'Altura no disponible');
+    if (tide.station) parts.push(`estación ${tide.station.name}`);
+    if (Number.isFinite(tide.coefficient)) {
+      parts.push(`coeficiente ${tide.coefficient} (${tide.coefficientSource || 'estimado'})`);
+    }
+    return parts.join(' · ');
+  }
+
   function catchCardHtml(record) {
     const measures = [];
     if (record.weightKg !== null) measures.push(fmt(record.weightKg, 2, 'kg'));
@@ -1050,11 +1124,6 @@
     const weatherLine = conditions && conditions.weather
       ? `Aire ${fmt(conditions.weather.airTemperatureC, 1, '°C')} · agua ${fmt(conditions.weather.waterTemperatureC, 1, '°C')} · viento ${fmt(conditions.weather.windSpeedKmh, 0, 'km/h')} · presión ${fmt(conditions.weather.pressureHpa, 0, 'hPa')}`
       : 'Sin datos meteorológicos';
-    const tideLine = conditions && conditions.tide && conditions.tide.heightM !== null
-      ? `Marea ${fmt(conditions.tide.heightM, 2, 'm')}${conditions.tide.station ? ` (estación ${conditions.tide.station.name})` : ''}`
-      : conditions && conditions.tide
-        ? `Coeficiente aprox. ${conditions.tide.coefficient ?? '—'}`
-        : 'Sin datos de marea';
 
     return `
       <article class="catch-card">
@@ -1072,7 +1141,7 @@
           <summary>Condiciones del momento</summary>
           <p class="fineprint">${utils.escapeHtml(conditions ? conditions.source : 'Sin origen')}</p>
           <p>${utils.escapeHtml(weatherLine)}</p>
-          <p>${utils.escapeHtml(tideLine)}${conditions && conditions.moon ? ` · Luna: ${utils.escapeHtml(conditions.moon.name)}` : ''}</p>
+          <p>${utils.escapeHtml(catchTideLine(conditions ? conditions.tide : null))}${conditions && conditions.moon ? ` · Luna: ${utils.escapeHtml(conditions.moon.name)}` : ''}</p>
           ${conditions && conditions.activity && conditions.activity.score !== null ? `<p>Índice de actividad: ${conditions.activity.score}/100 (${utils.escapeHtml(conditions.activity.level)})</p>` : ''}
           ${conditions && conditions.error ? renderAlert(conditions.error, 'warning') : ''}
         </details>

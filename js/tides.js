@@ -6,11 +6,15 @@
  * registro y cubre cualquier costa que tenga estación a menos de 60 km. Cada
  * estación indica su fuente y su licencia, y la app las muestra junto a la predicción.
  *
- * Fuente opcional: WorldTides, con clave gratuita (se elige en Ajustes).
+ * Coeficiente de marea (con la predicción armónica): amplitud del día local (pleamar
+ * más alta menos bajamar más baja) comparada con la amplitud media del año de la
+ * estación, con 70 como marea media. Es una estimación: puede diferir del oficial.
+ *
+ * Fuente opcional: WorldTides, con clave gratuita (se elige en Ajustes). Sin
+ * predicción armónica, el coeficiente cae a una estimación por fase lunar.
  *
  * Limitaciones: la predicción armónica no incluye viento, presión ni oleaje, y puede
- * diferir en puertos, estuarios y calas. El coeficiente de marea es una estimación
- * por fase lunar, no el oficial.
+ * diferir en puertos, estuarios y calas.
  */
 (function (root) {
   'use strict';
@@ -18,9 +22,17 @@
   const PescaApp = (root.PescaApp = root.PescaApp || {});
 
   const HOUR_MS = 60 * 60 * 1000;
+  const DAY_MS = 24 * HOUR_MS;
 
   /** Retraso medio de la marea respecto a la fase lunar (días). Se usa en el coeficiente aproximado. */
   const COEFFICIENT_LAG_DAYS = 1.5;
+
+  /** Escala del coeficiente: 70 = marea media del año. */
+  const COEFFICIENT_SCALE = 70;
+
+  /** Días de la tabla diaria y de la ventana que define la marea media del año. */
+  const DAILY_TABLE_DAYS = 7;
+  const REFERENCE_SPAN_DAYS = 365;
 
   /** Ventana de la vista en vivo: 3 h de pasado y 33 h de futuro. */
   const LIVE_PAST_MS = 3 * HOUR_MS;
@@ -49,6 +61,9 @@
 
   /** Peticiones de teselas en curso o ya cargadas, por clave. */
   const tileRequests = new Map();
+
+  /** Amplitudes medias del año por estación y día, para no recalcularlas en cada actualización. */
+  const referenceCache = new Map();
 
   // ---------------------------------------------------------------------------
   // Ajustes
@@ -84,13 +99,13 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Coeficiente de marea (estimación por fase lunar)
+  // Coeficiente de marea
   // ---------------------------------------------------------------------------
 
   /**
-   * Coeficiente de marea aproximado (escala 20–120, media cercana a 70).
-   * Las mareas vivas ocurren en luna nueva y llena, con un retraso de ~1,5 días;
-   * las muertas, en cuadraturas. No tiene en cuenta la declinación ni el perigeo.
+   * Coeficiente aproximado por fase lunar (escala 20–120, media cercana a 70).
+   * Solo se usa cuando no hay predicción armónica. No tiene en cuenta la
+   * declinación ni el perigeo.
    */
   function estimateCoefficient(date = new Date()) {
     const phase = PescaApp.moon.getMoonPhase(date);
@@ -105,6 +120,43 @@
     if (coefficient >= 95) return 'Mareas vivas';
     if (coefficient <= 45) return 'Mareas muertas';
     return 'Mareas intermedias';
+  }
+
+  /** Coeficiente a partir de la amplitud del día y la media del año. */
+  function coefficientFor(amplitudeM, meanAmplitudeM) {
+    if (!Number.isFinite(amplitudeM) || !Number.isFinite(meanAmplitudeM) || meanAmplitudeM <= 0) {
+      return null;
+    }
+    return Math.round((COEFFICIENT_SCALE * amplitudeM) / meanAmplitudeM);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fechas en la zona horaria de la estación
+  // ---------------------------------------------------------------------------
+
+  /** Zona horaria válida (IANA) o undefined, para usar la del dispositivo. */
+  function safeTimeZone(timeZone) {
+    if (!timeZone) return undefined;
+    try {
+      new Intl.DateTimeFormat('en', { timeZone }); // eslint-disable-line no-new
+      return timeZone;
+    } catch (error) {
+      return undefined;
+    }
+  }
+
+  /** Fecha local "YYYY-MM-DD" de un instante en la zona horaria indicada. */
+  function localDateKey(ts, timeZone) {
+    const zone = safeTimeZone(timeZone);
+    if (!zone) return PescaApp.utils.toDateString(new Date(ts));
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: zone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date(ts));
+    const read = (type) => parts.find((part) => part.type === type).value;
+    return `${read('year')}-${read('month')}-${read('day')}`;
   }
 
   // ---------------------------------------------------------------------------
@@ -210,6 +262,7 @@
       id: station.id,
       name: station.name,
       country: station.country,
+      timeZone: safeTimeZone(station.tz),
       distanceKm,
       source: station.source,
       sourceUrl: station.sourceUrl,
@@ -231,26 +284,105 @@
     return PescaApp.vendor.createTidePredictor(constituents, { offset });
   }
 
+  /** Pleamares y bajamares previstas en el intervalo, en el formato interno. */
+  function predictExtremes(predictor, startMs, endMs) {
+    return predictor
+      .getExtremesPrediction({ start: new Date(startMs), end: new Date(endMs) })
+      .map((extreme) => ({
+        ts: extreme.time.getTime(),
+        height: extreme.level,
+        type: extreme.high ? 'high' : 'low',
+      }));
+  }
+
   /** Alturas (cada 10 minutos) y extremos previstos en el intervalo. */
   function predictWindow(predictor, startMs, endMs) {
-    const start = new Date(startMs);
-    const end = new Date(endMs);
     const heights = predictor
-      .getTimelinePrediction({ start, end, timeFidelity: PREDICTION_STEP_SECONDS })
+      .getTimelinePrediction({ start: new Date(startMs), end: new Date(endMs), timeFidelity: PREDICTION_STEP_SECONDS })
       .map((point) => ({ ts: point.time.getTime(), height: point.level }));
-    const extremes = predictor.getExtremesPrediction({ start, end }).map((extreme) => ({
-      ts: extreme.time.getTime(),
-      height: extreme.level,
-      type: extreme.high ? 'high' : 'low',
-    }));
-    return { heights, extremes };
+    return { heights, extremes: predictExtremes(predictor, startMs, endMs) };
   }
 
   /**
-   * Predicción armónica en un intervalo, con la estación más cercana.
-   * Lanza un error con code 'no-station' si no hay ninguna estación cerca.
+   * Agrupa los extremos por día local. La amplitud del día es la pleamar más alta
+   * menos la bajamar más baja (null si el día no tiene ambas).
    */
-  async function getHarmonicWindow({ lat, lon, startMs, endMs }) {
+  function groupExtremesByDay(extremes, timeZone) {
+    const days = new Map();
+    extremes.forEach((extreme) => {
+      const key = localDateKey(extreme.ts, timeZone);
+      if (!days.has(key)) days.set(key, { key, extremes: [], highs: [], lows: [] });
+      const day = days.get(key);
+      day.extremes.push(extreme);
+      (extreme.type === 'high' ? day.highs : day.lows).push(extreme.height);
+    });
+    return [...days.values()]
+      .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
+      .map((day) => ({
+        key: day.key,
+        extremes: day.extremes.sort((a, b) => a.ts - b.ts),
+        amplitudeM:
+          day.highs.length && day.lows.length ? Math.max(...day.highs) - Math.min(...day.lows) : null,
+      }));
+  }
+
+  /**
+   * Amplitud media diaria del año alrededor de una fecha (la marea media de la estación).
+   * Se guarda en caché por estación y día.
+   */
+  function meanAmplitudeM(predictor, timeZone, stationId, centerMs) {
+    const cacheKey = `${stationId}|${localDateKey(centerMs, timeZone)}`;
+    if (!referenceCache.has(cacheKey)) {
+      const half = (REFERENCE_SPAN_DAYS / 2) * DAY_MS;
+      const amplitudes = groupExtremesByDay(predictExtremes(predictor, centerMs - half, centerMs + half), timeZone)
+        .map((day) => day.amplitudeM)
+        .filter((value) => value !== null);
+      if (!amplitudes.length) return null;
+      referenceCache.set(cacheKey, amplitudes.reduce((sum, value) => sum + value, 0) / amplitudes.length);
+    }
+    return referenceCache.get(cacheKey);
+  }
+
+  /**
+   * Tabla diaria para la vista en vivo: los próximos días locales con su coeficiente
+   * y sus pleamares y bajamares. `todayCoefficient` es el coeficiente del día de hoy.
+   */
+  function buildDailyTable(predictor, { timeZone, stationId, nowMs, days = DAILY_TABLE_DAYS }) {
+    const meanM = meanAmplitudeM(predictor, timeZone, stationId, nowMs);
+    const groups = groupExtremesByDay(
+      predictExtremes(predictor, nowMs - 36 * HOUR_MS, nowMs + (days + 2) * DAY_MS),
+      timeZone
+    );
+    const todayKey = localDateKey(nowMs, timeZone);
+    const table = groups
+      .filter((day) => day.key >= todayKey)
+      .slice(0, days)
+      .map((day) => ({
+        dateKey: day.key,
+        coefficient: coefficientFor(day.amplitudeM, meanM),
+        amplitudeM: day.amplitudeM === null ? null : PescaApp.utils.round(day.amplitudeM, 2),
+        extremes: day.extremes,
+      }));
+    return {
+      meanAmplitudeM: meanM === null ? null : PescaApp.utils.round(meanM, 2),
+      days: table,
+      todayCoefficient: table.length ? table[0].coefficient : null,
+    };
+  }
+
+  /** Coeficiente del día de una fecha concreta (captura pasada). */
+  function coefficientOnDay(predictor, timeZone, stationId, dateMs) {
+    const meanM = meanAmplitudeM(predictor, timeZone, stationId, dateMs);
+    const key = localDateKey(dateMs, timeZone);
+    const day = groupExtremesByDay(
+      predictExtremes(predictor, dateMs - 36 * HOUR_MS, dateMs + 36 * HOUR_MS),
+      timeZone
+    ).find((group) => group.key === key);
+    return day ? coefficientFor(day.amplitudeM, meanM) : null;
+  }
+
+  /** Estación armónica más cercana con su predictor. Lanza 'no-station' si no hay ninguna. */
+  async function resolveHarmonicStation(lat, lon) {
     const candidates = await loadStationsNear(lat, lon);
     const found = findNearestStation(lat, lon, candidates);
     if (!found) {
@@ -260,21 +392,61 @@
       error.code = 'no-station';
       throw error;
     }
-    const { heights, extremes } = predictWindow(createStationPredictor(found.station), startMs, endMs);
+    return {
+      station: found.station,
+      distanceKm: found.distanceKm,
+      predictor: createStationPredictor(found.station),
+    };
+  }
+
+  /** Predicción armónica en un intervalo, con la estación más cercana. */
+  async function getHarmonicWindow({ lat, lon, startMs, endMs }) {
+    const { station, distanceKm, predictor } = await resolveHarmonicStation(lat, lon);
+    const { heights, extremes } = predictWindow(predictor, startMs, endMs);
     return {
       method: SOURCE_HARMONIC,
       heights,
       extremes,
       coversStartMs: startMs,
       coversEndMs: endMs,
-      station: describeStation(found.station, found.distanceKm),
+      station: describeStation(station, distanceKm),
     };
   }
 
-  /** Vista en vivo con predicción armónica: 3 h atrás y 33 h adelante. */
-  function getHarmonicLive(lat, lon, now) {
+  /** Vista en vivo con predicción armónica: 3 h atrás, 33 h adelante y la tabla diaria. */
+  async function getHarmonicLive(lat, lon, now) {
     const nowMs = now.getTime();
-    return getHarmonicWindow({ lat, lon, startMs: nowMs - LIVE_PAST_MS, endMs: nowMs + LIVE_FUTURE_MS });
+    const { station, distanceKm, predictor } = await resolveHarmonicStation(lat, lon);
+    const { heights, extremes } = predictWindow(predictor, nowMs - LIVE_PAST_MS, nowMs + LIVE_FUTURE_MS);
+    const daily = buildDailyTable(predictor, { timeZone: station.tz, stationId: station.id, nowMs });
+    return {
+      method: SOURCE_HARMONIC,
+      heights,
+      extremes,
+      coversStartMs: nowMs - LIVE_PAST_MS,
+      coversEndMs: nowMs + LIVE_FUTURE_MS,
+      coefficient: daily.todayCoefficient,
+      daily,
+      station: describeStation(station, distanceKm),
+    };
+  }
+
+  /** Predicción alrededor de una captura pasada (±3 h), con el coeficiente de ese día. */
+  async function getHarmonicHistorical(lat, lon, dateTime) {
+    const centerMs = dateTime.getTime();
+    const startMs = centerMs - 3 * HOUR_MS;
+    const endMs = centerMs + 3 * HOUR_MS;
+    const { station, distanceKm, predictor } = await resolveHarmonicStation(lat, lon);
+    const { heights, extremes } = predictWindow(predictor, startMs, endMs);
+    return {
+      method: SOURCE_HARMONIC,
+      heights,
+      extremes,
+      coversStartMs: startMs,
+      coversEndMs: endMs,
+      coefficient: coefficientOnDay(predictor, station.tz, station.id, centerMs),
+      station: describeStation(station, distanceKm),
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -333,6 +505,7 @@
       id: `worldtides/${normalized.station}`,
       name: normalized.station,
       country: null,
+      timeZone: undefined,
       distanceKm: Number.isFinite(distanceM) ? PescaApp.utils.round(distanceM / 1000, 1) : null,
       source: 'WorldTides',
       sourceUrl: 'https://www.worldtides.info',
@@ -427,7 +600,7 @@
   // ---------------------------------------------------------------------------
 
   /**
-   * Alturas y extremos en vivo, con la fuente elegida en Ajustes.
+   * Alturas, extremos y tabla diaria en vivo, con la fuente elegida en Ajustes.
    * Por defecto, predicción armónica (sin registro).
    */
   async function getLiveTides(lat, lon, apiKey, now = new Date()) {
@@ -441,7 +614,7 @@
   }
 
   /**
-   * Alturas y extremos alrededor de una captura pasada (±3 h).
+   * Alturas y extremos alrededor de una captura pasada (±3 h), con el coeficiente de ese día.
    * Devuelve null si no hay datos para ese punto y momento.
    */
   async function getHistoricalTides(lat, lon, apiKey, dateTime) {
@@ -449,8 +622,7 @@
       if (getSource() === SOURCE_WORLDTIDES && apiKey) {
         return await getWorldTidesHistorical(lat, lon, apiKey, dateTime.getTime());
       }
-      const centerMs = dateTime.getTime();
-      return await getHarmonicWindow({ lat, lon, startMs: centerMs - 3 * HOUR_MS, endMs: centerMs + 3 * HOUR_MS });
+      return await getHarmonicHistorical(lat, lon, dateTime);
     } catch (error) {
       return null;
     }
@@ -531,17 +703,22 @@
     };
   }
 
-  /** Foto de las mareas en un instante, para guardarla con una captura. */
-  function buildTideSnapshot(tides, nowMs, coefficient) {
+  /**
+   * Foto de las mareas en un instante, para guardarla con una captura.
+   * El coeficiente sale de la predicción armónica si existe; si no, queda null.
+   */
+  function buildTideSnapshot(tides, nowMs) {
     const summary = summarize(tides, nowMs);
     if (!summary) return null;
     const utils = PescaApp.utils;
+    const hasCoefficient = Number.isFinite(tides.coefficient);
     return {
       heightM: summary.currentHeightM === null ? null : utils.round(summary.currentHeightM, 2),
       hoursFromExtreme: summary.hoursFromExtreme === null ? null : utils.round(summary.hoursFromExtreme, 1),
       nextHigh: summary.nextHigh ? { ts: summary.nextHigh.ts, height: summary.nextHigh.height } : null,
       nextLow: summary.nextLow ? { ts: summary.nextLow.ts, height: summary.nextLow.height } : null,
-      coefficient,
+      coefficient: hasCoefficient ? tides.coefficient : null,
+      coefficientSource: hasCoefficient ? 'predicción armónica' : null,
       station: tides.station
         ? {
             name: tides.station.name,
@@ -555,6 +732,8 @@
 
   PescaApp.tides = Object.freeze({
     COEFFICIENT_LAG_DAYS,
+    COEFFICIENT_SCALE,
+    DAILY_TABLE_DAYS,
     SOURCE_HARMONIC,
     SOURCE_WORLDTIDES,
     getSource,
@@ -563,6 +742,9 @@
     saveApiKey,
     estimateCoefficient,
     describeCoefficient,
+    coefficientFor,
+    safeTimeZone,
+    localDateKey,
     tileKeysAround,
     wrapLonIndex,
     loadStationsNear,
@@ -570,7 +752,12 @@
     describeLicense,
     describeStation,
     createStationPredictor,
+    predictExtremes,
     predictWindow,
+    groupExtremesByDay,
+    meanAmplitudeM,
+    buildDailyTable,
+    coefficientOnDay,
     getHarmonicWindow,
     buildTidesUrl,
     normalizeTides,

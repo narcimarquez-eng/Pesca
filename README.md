@@ -26,7 +26,7 @@ Al cargar, la app pide tu ubicación. También puedes escribir un lugar (ciudad,
 - **Clima actual:** temperatura del aire y del agua, viento (km/h y nudos, con dirección), presión con su tendencia de 3 h, humedad, nubosidad, precipitación, amanecer y atardecer.
 - **Luna:** fase, iluminación y próxima luna llena o nueva (cálculo propio, sin API).
 - **Índice de actividad (0–100):** combina presión, luna, viento y marea, y explica cada factor.
-- **Mareas:** altura actual, próximas pleamar y bajamar, gráfica de 24 horas y tabla de extremos. Por defecto usa la **predicción armónica de la estación de marea más cercana**, sin registro ni clave. Como opción, puedes usar WorldTides con una clave gratuita. Se muestra la estación usada, su distancia y su licencia.
+- **Mareas:** altura actual, próximas pleamar y bajamar, gráfica de 24 horas, **coeficiente de marea de hoy** y una **tabla de los próximos 7 días** con el coeficiente, las pleamares y las bajamares de cada día. Por defecto usa la **predicción armónica de la estación de marea más cercana**, sin registro ni clave. Como opción, puedes usar WorldTides con una clave gratuita. Se muestra la estación usada, su distancia y su licencia.
 - **Especies de la zona:** 17 especies con ficha completa: tallas mínimas por zona, pesos, hábitat, periodos de mayor actividad, cebos, técnicas, restricciones y fuentes.
 - **Registro de capturas:** fecha y hora editables, especie con autocompletado, peso, longitud, cebo, técnica, notas y foto. Las capturas pasadas guardan las condiciones de ese momento: datos históricos de Open-Meteo y marea predicha para esa fecha.
 - **Validación:** en rojo si la captura está por debajo de la talla mínima de referencia o en veda o protección. Si solo hay longitud, estima el peso con W = a · L^b.
@@ -37,6 +37,7 @@ Al cargar, la app pide tu ubicación. También puedes escribir un lugar (ciudad,
 1. La app busca las estaciones de marea de la base de datos en las 9 teselas (de 10° × 10°) alrededor de tu ubicación y elige la más cercana, a menos de 60 km.
 2. Con las constantes armónicas de esa estación calcula las pleamares, las bajamares y las alturas cada 10 minutos. Las alturas se expresan sobre LAT (bajamar astronómica) cuando la estación tiene ese dato.
 3. La tarjeta de mareas muestra la estación, su distancia, su fuente y su licencia. Si la estación está a más de 20 km, avisa de que la predicción puede desviarse en la costa abierta, estuarios o calas.
+4. **Coeficiente de marea:** para cada día local, la amplitud del día (la pleamar más alta menos la bajamar más baja) se compara con la amplitud media del año de esa estación, con 70 como marea media. Las mareas vivas dan valores altos y las muertas, valores bajos. Es el mismo criterio de las tablas oficiales, aplicado a la estación más cercana, así que puede diferir del coeficiente oficial.
 
 **Qué no incluye:** viento, presión ni oleaje. Una tormenta o un viento fuerte pueden alterar la marea real. Tampoco sustituye a las tablas oficiales de tu puerto.
 
@@ -159,13 +160,13 @@ Los archivos se cargan con `<script>` clásicos, en orden, sin módulos ES. Así
 npm test
 ```
 
-Ejecuta 68 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente, mareas (predicción armónica y WorldTides), selección de estación, predicción de A Coruña, integridad de todas las teselas, parseo de respuestas, índice de actividad, validación de tallas y vedas, catálogo, zonas y exportación CSV/JSON.
+Ejecuta 76 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (incluida su correlación con la fase lunar), mareas (predicción armónica y WorldTides), zonas horarias de las estaciones, selección de estación, predicción de A Coruña, integridad de todas las teselas, parseo de respuestas, índice de actividad, validación de tallas y vedas, catálogo, zonas y exportación CSV/JSON.
 
 ## Limitaciones conocidas
 
 - **Mareas:** la predicción armónica es astronómica. No incluye viento, presión ni oleaje, y puede diferir en puertos, estuarios y calas. Cerca de la estación (menos de 20 km) suele ser más fiable que lejos. No se ha comparado todavía con las tablas oficiales de un puerto concreto: compara antes de fiarte.
 - **Tallas y vedas:** son referencias orientativas. La talla de pesca recreativa depende de la comunidad autónoma. Varias especies no tienen talla confirmada y ninguna tiene vedas registradas todavía.
-- **Coeficiente de marea:** es una estimación por fase lunar, no el coeficiente oficial de las tablas.
+- **Coeficiente de marea:** con la predicción armónica es una estimación de la amplitud del día frente a la media del año de la estación. Puede diferir del coeficiente oficial de las tablas. Si usas WorldTides, el coeficiente cae a una estimación por fase lunar.
 - **Luna:** cálculo de luna media (error de unas horas). Para horas exactas de salida y puesta de la Luna, usa un cálculo astronómico completo.
 - **Índice de actividad:** es una heurística. No garantiza capturas.
 - **Pesos estimados:** el error habitual es de ±30 %.

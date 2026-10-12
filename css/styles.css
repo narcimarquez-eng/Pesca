@@ -725,6 +725,46 @@ textarea {
   font-weight: 600;
 }
 
+.daily-table {
+  margin-top: 10px;
+}
+
+.daily-table table {
+  font-size: 0.85rem;
+}
+
+.daily-table th,
+.daily-table td {
+  padding: 6px 4px;
+}
+
+.daily-table summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--sea-700);
+}
+
+.coef {
+  display: inline-block;
+  min-width: 2.4em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-align: center;
+  font-weight: 700;
+  background: var(--sea-100);
+  color: var(--sea-700);
+}
+
+.coef-vivas {
+  background: var(--sand-300);
+  color: var(--text);
+}
+
+.coef-muertas {
+  background: var(--sand-100);
+  color: var(--muted);
+}
+
 .extremes summary {
   cursor: pointer;
   font-weight: 600;

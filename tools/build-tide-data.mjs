@@ -64,6 +64,7 @@ function compactStation(station) {
     lat: round(station.latitude, 4),
     lon: round(station.longitude, 4),
     country: station.country_code || null,
+    tz: station.timezone || null,
     source: station.source && station.source.name ? station.source.name : 'Fuente no indicada',
     sourceUrl: station.source && station.source.url ? station.source.url : null,
     license: station.license && station.license.type ? station.license.type : 'desconocida',

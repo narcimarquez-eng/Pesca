@@ -39,7 +39,8 @@
     { header: 'Precipitación (mm)', value: (record) => record.conditions && record.conditions.weather && record.conditions.weather.precipitationMm },
     { header: 'Fase lunar', value: (record) => record.conditions && record.conditions.moon && record.conditions.moon.name },
     { header: 'Altura de marea (m)', value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.heightM },
-    { header: 'Coeficiente de marea (aprox.)', value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.coefficient },
+    { header: 'Coeficiente de marea', value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.coefficient },
+    { header: 'Origen del coeficiente', value: (record) => record.conditions && record.conditions.tide && record.conditions.tide.coefficientSource },
     { header: 'Índice de actividad', value: (record) => record.conditions && record.conditions.activity && record.conditions.activity.score },
     { header: 'Origen de las condiciones', value: (record) => record.conditions && record.conditions.source },
   ];
