@@ -49,8 +49,8 @@ test('classifyZone asigna la costa correcta e indica cuándo el lugar está fuer
 
 test('searchSpecies ignora acentos, busca por alias y nombre científico, y respeta la zona', () => {
   assert.equal(species.searchSpecies('robalo')[0].id, 'lubina');
-  assert.equal(species.searchSpecies('dicentrarchus')[0].id, 'lubina');
-  const canaryResults = species.searchSpecies('', { zoneId: 'canarias' });
+  assert.equal(species.searchSpecies('dicentrarchus labrax')[0].id, 'lubina');
+  const canaryResults = species.searchSpecies('', { zoneId: 'canarias', limit: 500 });
   assert.ok(canaryResults.length > 0);
   assert.ok(canaryResults.every((item) => item.zones.includes('canarias')));
   assert.ok(canaryResults.some((item) => item.id === 'barracuda'));

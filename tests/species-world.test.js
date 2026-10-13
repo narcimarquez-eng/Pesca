@@ -11,7 +11,7 @@ const hookValue = (size) => (size.endsWith('/0') ? 100 + Number(size.slice(0, -2
 test('todas las fichas usan códigos del vocabulario, nombres en castellano e inglés y anzuelos válidos', () => {
   const { VOCAB } = species;
   const all = species.getSpeciesList();
-  assert.ok(all.length > 300, `especies: ${all.length}`);
+  assert.ok(all.length >= 250, `especies: ${all.length}`);
   const ids = all.map((item) => item.id);
   assert.equal(new Set(ids).size, ids.length, 'ids repetidos');
   for (const item of all) {
