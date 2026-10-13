@@ -481,7 +481,9 @@
     state.tidesError = null;
     renderTidesCard();
     try {
-      const tideData = await tides.getLiveTides(place.lat, place.lon, tides.getApiKey(), new Date());
+      const tideData = await tides.getLiveTides(place.lat, place.lon, tides.getApiKey(), new Date(), {
+        countryCode: place.countryCode,
+      });
       if (requestId !== tidesRequestId) return;
       state.tides = tideData;
     } catch (error) {
@@ -1000,7 +1002,7 @@
 
     const stationHtml = station
       ? `<div class="station-line">
-          <p><strong>${PescaApp.i18n.t('Estación:')}</strong> ${utils.escapeHtml(station.name)} (${fmt(station.distanceKm, 1, 'km')}) · ${utils.escapeHtml(station.source)} · ${utils.escapeHtml(station.licenseLabel)}</p>
+          <p><strong>${station.isModel ? PescaApp.i18n.t('Modelo:') : PescaApp.i18n.t('Estación:')}</strong> ${utils.escapeHtml(station.name)} (${fmt(station.distanceKm, 1, 'km')}) · ${utils.escapeHtml(station.source)} · ${utils.escapeHtml(station.licenseLabel)}</p>
           <p class="fineprint">${utils.escapeHtml(station.referenceLabel)}.${
             station.sourceUrl
               ? ` <a href="${utils.escapeHtml(station.sourceUrl)}" target="_blank" rel="noopener">${PescaApp.i18n.t('Ver la fuente')}</a>`
@@ -1008,8 +1010,16 @@
           }</p>
         </div>`
       : '';
-    const distanceWarning =
-      station && station.distanceKm > STATION_DISTANCE_WARNING_KM
+    const modelSettings = PescaApp.config.tides;
+    const accuracyWarning = station && station.isModel
+      ? renderAlert(
+          PescaApp.i18n.t(
+            'Predicción del modelo global de mareas EOT20, no de un mareógrafo: en costa abierta suele desviarse unos {cm} cm y {min} minutos; en rías, estuarios y bahías, bastante más.',
+            { cm: modelSettings.modelTypicalErrorCm, min: modelSettings.modelTypicalErrorMin }
+          ),
+          'warning'
+        )
+      : station && station.distanceKm > STATION_DISTANCE_WARNING_KM
         ? renderAlert(
             PescaApp.i18n.t(
               'La estación está a {distancia}. En la costa abierta, estuarios o calas la hora y la altura pueden desviarse.',
@@ -1034,7 +1044,7 @@
 
     dom.tidesBody.innerHTML = `
       ${stationHtml}
-      ${distanceWarning}
+      ${accuracyWarning}
       <div class="tide-summary">
         <div class="tide-stat"><span class="muted">${PescaApp.i18n.t('Altura ahora')}</span><strong>${currentText}</strong></div>
         <div class="tide-stat"><span class="muted">${PescaApp.i18n.t('Próxima pleamar')}</span><strong>${utils.escapeHtml(nextHighText)}</strong></div>
@@ -1335,7 +1345,9 @@
       if (isPast) {
         weatherData = await weather.getHistoricalConditions(place.lat, place.lon, dateTimeText, now);
         sourceLabel = weatherData.source;
-        tideWindow = await tides.getHistoricalTides(place.lat, place.lon, tides.getApiKey(), dateTime);
+        tideWindow = await tides.getHistoricalTides(place.lat, place.lon, tides.getApiKey(), dateTime, {
+          countryCode: place.countryCode,
+        });
       } else {
         weatherData = state.forecast;
         sourceLabel = 'current';

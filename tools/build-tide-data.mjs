@@ -5,9 +5,12 @@
  *
  * Qué hace:
  * 1. Toma las estaciones de marea aceptadas por el control de calidad de la base de datos.
- * 2. Descarta las que no pueden reproducir una predicción válida con el predictor.
- * 3. Reduce cada estación a sus constituyentes armónicos significativos.
- * 4. Agrupa las estaciones en teselas de 10° × 10° (js/data/tides/<lat>_<lon>.js) y
+ * 2. Descarta las que no permiten uso comercial (license.commercial_use === false): son
+ *    las CC BY-NC 4.0 cuyos datos de origen lo restringen. Así todas las estaciones
+ *    incluidas son de dominio público o CC BY 4.0.
+ * 3. Descarta las que no pueden reproducir una predicción válida con el predictor.
+ * 4. Reduce cada estación a sus constituyentes armónicos significativos.
+ * 5. Agrupa las estaciones en teselas de 10° × 10° (js/data/tides/<lat>_<lon>.js) y
  *    escribe un manifiesto con las teselas existentes (js/data/tides/manifest.js).
  *
  * Uso: npm run build:tides
@@ -29,6 +32,9 @@ const TILE_SIZE_DEG = 10;
 const MIN_AMPLITUDE_M = 0.002;
 
 const round = (value, decimals) => Number(value.toFixed(decimals));
+
+/** Estaciones cuya licencia permite el uso comercial (dominio público o CC BY 4.0). */
+const allowsCommercialUse = (station) => !(station.license && station.license.commercial_use === false);
 const tileIndex = (value) => Math.floor(value / TILE_SIZE_DEG);
 
 function toPredictorConstituents(constituents) {
@@ -76,12 +82,13 @@ function compactStation(station) {
 }
 
 async function main() {
-  const candidates = stations.filter(
+  const tideStations = stations.filter(
     (station) =>
       station.kind === 'tide' &&
       Array.isArray(station.harmonic_constituents) &&
       station.harmonic_constituents.length > 0
   );
+  const candidates = tideStations.filter(allowsCommercialUse);
 
   const tiles = new Map();
   let rejected = 0;
@@ -105,7 +112,7 @@ async function main() {
   const header = [
     '/* Generado por tools/build-tide-data.mjs. No editar a mano.',
     ' * Constantes armónicas de estaciones de marea: base de datos @neaps/tide-database (código MIT).',
-    ' * Cada estación indica su fuente y su licencia (CC BY 4.0, CC BY-NC 4.0 o dominio público).',
+    ' * Cada estación indica su fuente y su licencia (CC BY 4.0 o dominio público).',
     ' * Ver el README, apartado "Atribución y licencias".',
     ' */',
   ].join('\n');
@@ -135,6 +142,7 @@ async function main() {
   await writeFile(path.join(OUTPUT_DIR, 'manifest.js'), manifest, 'utf8');
 
   const stationCount = [...tiles.values()].reduce((sum, list) => sum + list.length, 0);
+  console.log(`Estaciones de marea: ${tideStations.length}; sin uso comercial (excluidas): ${tideStations.length - candidates.length}`);
   console.log(`Estaciones candidatas: ${candidates.length}`);
   console.log(`Descartadas por el predictor o por tener pocos constituyentes: ${rejected}`);
   console.log(`Estaciones incluidas: ${stationCount} en ${keys.length} teselas (${(totalBytes / 1e6).toFixed(2)} MB).`);

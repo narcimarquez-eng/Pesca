@@ -1,6 +1,6 @@
 /* Generado por tools/build-tide-data.mjs. No editar a mano.
  * Constantes armónicas de estaciones de marea: base de datos @neaps/tide-database (código MIT).
- * Cada estación indica su fuente y su licencia (CC BY 4.0, CC BY-NC 4.0 o dominio público).
+ * Cada estación indica su fuente y su licencia (CC BY 4.0 o dominio público).
  * Ver el README, apartado "Atribución y licencias".
  */
 (function (root) {

@@ -1,10 +1,13 @@
 /**
  * Mareas.
  *
- * Fuente por defecto: predicción armónica con las constantes de la estación de
- * marea más cercana (base de datos @neaps/tide-database, código MIT). No necesita
- * registro y cubre cualquier costa que tenga estación a menos de 60 km. Cada
- * estación indica su fuente y su licencia, y la app las muestra junto a la predicción.
+ * Fuente por defecto: predicción armónica, sin registro. Elige, por este orden:
+ * 1. La estación de marea más cercana a menos de stationMaxDistanceKm (base de datos
+ *    @neaps/tide-database; solo estaciones de dominio público o CC BY 4.0).
+ * 2. Si no hay ninguna, el punto más cercano del modelo global EOT20 (CC BY 4.0) a menos
+ *    de modelMaxDistanceKm: constantes armónicas del modelo en la franja costera.
+ * Cada estación o punto indica su fuente y su licencia, y la app las muestra junto a
+ * la predicción.
  *
  * Coeficiente de marea (con la predicción armónica): amplitud del día local (pleamar
  * más alta menos bajamar más baja) comparada con la amplitud media del año de la
@@ -214,29 +217,36 @@
     return keys;
   }
 
-  /** Carga una tesela con un <script>, así también funciona abriendo index.html directamente. */
-  function loadTile(key) {
-    if (PescaApp.tideTiles && PescaApp.tideTiles[key]) return Promise.resolve();
+  /**
+   * Carga una tesela con un <script>, así también funciona abriendo index.html directamente.
+   * `kind` es 'stations' (estaciones) o 'model' (puntos del modelo global).
+   */
+  function loadTile(key, kind = 'stations') {
+    const isModel = kind === 'model';
+    const store = isModel ? PescaApp.tideModelTiles : PescaApp.tideTiles;
+    if (store && store[key]) return Promise.resolve();
     const doc = root.document;
     if (!doc) {
       return Promise.reject(new Error(t('Los datos de marea solo se pueden cargar en el navegador.')));
     }
-    if (!tileRequests.has(key)) {
+    const requestKey = `${kind}:${key}`;
+    if (!tileRequests.has(requestKey)) {
+      const folder = isModel ? PescaApp.config.tides.modelTileFolder : PescaApp.config.tides.tileFolder;
       const request = new Promise((resolve, reject) => {
         const script = doc.createElement('script');
-        script.src = `${PescaApp.config.tides.tileFolder}${key}.js`;
+        script.src = `${folder}${key}.js`;
         script.async = true;
         script.onload = () => resolve();
         script.onerror = () => {
-          tileRequests.delete(key);
+          tileRequests.delete(requestKey);
           script.remove();
           reject(new Error(t('No se pudieron cargar los datos de marea de la zona {key}.', { key })));
         };
         doc.head.appendChild(script);
       });
-      tileRequests.set(key, request);
+      tileRequests.set(requestKey, request);
     }
-    return tileRequests.get(key);
+    return tileRequests.get(requestKey);
   }
 
   /** Estaciones de las teselas alrededor del punto. Carga las que falten. */
@@ -247,6 +257,97 @@
       (list, key) => list.concat((PescaApp.tideTiles && PescaApp.tideTiles[key]) || []),
       []
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Puntos del modelo global (js/data/tides-model/*.js, generados por tools/build-tide-model.mjs)
+  // ---------------------------------------------------------------------------
+
+  /** Puntos ya decodificados de cada tesela de modelo. */
+  const modelPointCache = new WeakMap();
+
+  function modelManifestHas(key) {
+    const manifest = PescaApp.tideModelManifest || [];
+    return manifest.indexOf(key) !== -1;
+  }
+
+  /**
+   * Teselas de modelo que tocan el círculo de `radiusKm` alrededor del punto y existen en
+   * el manifiesto. Suele ser una; cerca de un borde, dos o cuatro.
+   */
+  function modelTileKeysNear(lat, lon, radiusKm) {
+    const size = PescaApp.config.tides.modelTileSizeDeg;
+    const count = 360 / size;
+    const dLat = radiusKm / 111;
+    const dLon = radiusKm / (111 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
+    const keys = [];
+    for (let latIndex = Math.floor((lat - dLat) / size); latIndex <= Math.floor((lat + dLat) / size); latIndex += 1) {
+      for (let lonIndex = Math.floor((lon - dLon) / size); lonIndex <= Math.floor((lon + dLon) / size); lonIndex += 1) {
+        let wrapped = lonIndex;
+        while (wrapped >= count / 2) wrapped -= count;
+        while (wrapped < -count / 2) wrapped += count;
+        const key = `${latIndex}_${wrapped}`;
+        if (keys.indexOf(key) === -1 && modelManifestHas(key)) keys.push(key);
+      }
+    }
+    return keys;
+  }
+
+  /**
+   * Puntos de una tesela de modelo con la misma forma que una estación. No tienen datum
+   * (alturas sobre el nivel medio) ni zona horaria (se asigna al elegirlos).
+   * Cada punto viene como [lat, lon, amplitudes en mm..., fases en grados...].
+   */
+  function modelPointsOf(key) {
+    const tile = PescaApp.tideModelTiles && PescaApp.tideModelTiles[key];
+    if (!tile) return [];
+    if (modelPointCache.has(tile)) return modelPointCache.get(tile);
+    const names = tile.constituents;
+    const points = tile.points.map((point) => {
+      const constituents = [];
+      for (let k = 0; k < names.length; k += 1) {
+        const amplitudeMm = point[2 + k];
+        if (amplitudeMm > 0) constituents.push([names[k], amplitudeMm / 1000, point[2 + names.length + k]]);
+      }
+      return {
+        id: `${tile.model}/${point[0]}/${point[1]}`,
+        name: tile.name,
+        lat: point[0],
+        lon: point[1],
+        country: null,
+        tz: null,
+        model: tile.model,
+        source: tile.source,
+        sourceUrl: tile.sourceUrl,
+        license: tile.license,
+        datum: null,
+        constituents,
+      };
+    });
+    modelPointCache.set(tile, points);
+    return points;
+  }
+
+  /** Puntos de modelo cercanos al punto. Carga las teselas que falten. */
+  async function loadModelPointsNear(lat, lon) {
+    const keys = modelTileKeysNear(lat, lon, PescaApp.config.tides.modelMaxDistanceKm);
+    await Promise.all(keys.map((key) => loadTile(key, 'model')));
+    return keys.reduce((list, key) => list.concat(modelPointsOf(key)), []);
+  }
+
+  /**
+   * Zona horaria para un punto de modelo: la de la estación más cercana del mismo país
+   * que el lugar. Si se conoce el país y no hay estaciones suyas cerca, null (la del
+   * dispositivo), para no tomar la de un país vecino. Si no se conoce, la más cercana.
+   */
+  function modelTimeZone(lat, lon, stations, countryCode) {
+    const country = countryCode ? String(countryCode).toUpperCase() : null;
+    const withZone = stations.filter((station) => station.tz && !station.model);
+    const pool = country
+      ? withZone.filter((station) => String(station.country || '').toUpperCase() === country)
+      : withZone;
+    const found = findNearestStation(lat, lon, pool, Infinity);
+    return found ? found.station.tz : null;
   }
 
   /**
@@ -283,6 +384,7 @@
       sourceUrl: station.sourceUrl,
       license: station.license,
       licenseLabel: describeLicense(station.license),
+      isModel: Boolean(station.model),
       referenceLabel: station.datum
         ? t('Alturas sobre LAT (bajamar astronómica)')
         : t('Alturas sobre el nivel medio del mar'),
@@ -396,10 +498,21 @@
     return day ? coefficientFor(day.amplitudeM, meanM) : null;
   }
 
-  /** Estación armónica más cercana con su predictor. Lanza 'no-station' si no hay ninguna. */
-  async function resolveHarmonicStation(lat, lon) {
+  /**
+   * Estación o punto de modelo para predecir, con su predictor (orden en la cabecera del
+   * módulo). `countryCode` es el país del lugar, para la zona horaria de los puntos de
+   * modelo. Lanza 'no-station' si no hay ninguno de los dos.
+   */
+  async function resolveHarmonicStation(lat, lon, { countryCode = null } = {}) {
     const candidates = await loadStationsNear(lat, lon);
-    const found = findNearestStation(lat, lon, candidates);
+    let found = findNearestStation(lat, lon, candidates);
+    if (!found) {
+      const points = await loadModelPointsNear(lat, lon);
+      const model = findNearestStation(lat, lon, points, PescaApp.config.tides.modelMaxDistanceKm);
+      if (model) {
+        found = { ...model, station: { ...model.station, tz: modelTimeZone(lat, lon, candidates, countryCode) } };
+      }
+    }
     if (!found) {
       const error = new Error(
         t('No hay ninguna estación de marea a menos de {km} km de este punto. Prueba con un puerto cercano o cambia la fuente en Ajustes.', {
@@ -417,8 +530,8 @@
   }
 
   /** Predicción armónica en un intervalo, con la estación más cercana. */
-  async function getHarmonicWindow({ lat, lon, startMs, endMs }) {
-    const { station, distanceKm, predictor } = await resolveHarmonicStation(lat, lon);
+  async function getHarmonicWindow({ lat, lon, startMs, endMs, countryCode = null }) {
+    const { station, distanceKm, predictor } = await resolveHarmonicStation(lat, lon, { countryCode });
     const { heights, extremes } = predictWindow(predictor, startMs, endMs);
     return {
       method: SOURCE_HARMONIC,
@@ -431,9 +544,9 @@
   }
 
   /** Vista en vivo con predicción armónica: 3 h atrás, 75 h adelante y la tabla diaria. */
-  async function getHarmonicLive(lat, lon, now) {
+  async function getHarmonicLive(lat, lon, now, options = {}) {
     const nowMs = now.getTime();
-    const { station, distanceKm, predictor } = await resolveHarmonicStation(lat, lon);
+    const { station, distanceKm, predictor } = await resolveHarmonicStation(lat, lon, options);
     const { heights, extremes } = predictWindow(predictor, nowMs - LIVE_PAST_MS, nowMs + HARMONIC_FUTURE_MS);
     const daily = buildDailyTable(predictor, { timeZone: station.tz, stationId: station.id, nowMs });
     return {
@@ -449,11 +562,11 @@
   }
 
   /** Predicción alrededor de una captura pasada (±3 h), con el coeficiente de ese día. */
-  async function getHarmonicHistorical(lat, lon, dateTime) {
+  async function getHarmonicHistorical(lat, lon, dateTime, options = {}) {
     const centerMs = dateTime.getTime();
     const startMs = centerMs - 3 * HOUR_MS;
     const endMs = centerMs + 3 * HOUR_MS;
-    const { station, distanceKm, predictor } = await resolveHarmonicStation(lat, lon);
+    const { station, distanceKm, predictor } = await resolveHarmonicStation(lat, lon, options);
     const { heights, extremes } = predictWindow(predictor, startMs, endMs);
     return {
       method: SOURCE_HARMONIC,
@@ -623,28 +736,29 @@
 
   /**
    * Alturas, extremos y tabla diaria en vivo, con la fuente elegida en Ajustes.
-   * Por defecto, predicción armónica (sin registro).
+   * Por defecto, predicción armónica (sin registro). `options.countryCode` es el país del
+   * lugar (para la zona horaria de los puntos de modelo).
    */
-  async function getLiveTides(lat, lon, apiKey, now = new Date()) {
+  async function getLiveTides(lat, lon, apiKey, now = new Date(), options = {}) {
     if (getSource() === SOURCE_WORLDTIDES) {
       if (!apiKey) {
         throw new Error(t('Has elegido WorldTides, pero falta la clave. Introdúcela en Ajustes o usa la predicción armónica.'));
       }
       return getWorldTidesLive(lat, lon, apiKey, now);
     }
-    return getHarmonicLive(lat, lon, now);
+    return getHarmonicLive(lat, lon, now, options);
   }
 
   /**
    * Alturas y extremos alrededor de una captura pasada (±3 h), con el coeficiente de ese día.
    * Devuelve null si no hay datos para ese punto y momento.
    */
-  async function getHistoricalTides(lat, lon, apiKey, dateTime) {
+  async function getHistoricalTides(lat, lon, apiKey, dateTime, options = {}) {
     try {
       if (getSource() === SOURCE_WORLDTIDES && apiKey) {
         return await getWorldTidesHistorical(lat, lon, apiKey, dateTime.getTime());
       }
-      return await getHarmonicHistorical(lat, lon, dateTime);
+      return await getHarmonicHistorical(lat, lon, dateTime, options);
     } catch (error) {
       return null;
     }
@@ -784,6 +898,11 @@
     tileKeysAround,
     wrapLonIndex,
     loadStationsNear,
+    modelTileKeysNear,
+    modelPointsOf,
+    loadModelPointsNear,
+    modelTimeZone,
+    resolveHarmonicStation,
     findNearestStation,
     describeLicense,
     describeStation,

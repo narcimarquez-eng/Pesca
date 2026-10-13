@@ -61,14 +61,26 @@
     maxZoneDistanceKm: 60,
 
     /**
-     * Mareas. stationMaxDistanceKm: distancia máxima a una estación de marea para
-     * predecir con sus constantes armónicas. tileSizeDeg debe coincidir con el valor
-     * de tools/build-tide-data.mjs; tileFolder es la carpeta de las teselas generadas.
+     * Mareas. Orden de elección (ver js/tides.js):
+     * - stationMaxDistanceKm: la estación de marea más cercana, hasta esta distancia.
+     * - modelMaxDistanceKm: si no hay ninguna, el punto del modelo global EOT20 más cercano,
+     *   hasta esta distancia de la franja costera del modelo.
+     * Una estación a menos de 60 km acierta más que el modelo, y a más de 20 km de la franja
+     * costera el modelo falla mucho (estuarios); ver «Mareas: cómo funciona» en el README.
+     * modelTypicalErrorCm y modelTypicalErrorMin resumen el error del modelo medido contra
+     * estaciones reales, para el aviso de la tarjeta de mareas.
+     * Los tamaños de tesela deben coincidir con tools/build-tide-data.mjs y
+     * tools/build-tide-model.mjs; las carpetas son las de las teselas generadas.
      */
     tides: Object.freeze({
       stationMaxDistanceKm: 60,
+      modelMaxDistanceKm: 20,
+      modelTypicalErrorCm: 10,
+      modelTypicalErrorMin: 25,
       tileSizeDeg: 10,
       tileFolder: 'js/data/tides/',
+      modelTileSizeDeg: 5,
+      modelTileFolder: 'js/data/tides-model/',
     }),
 
     /** Ajustes de las fotos de las capturas (se guardan en localStorage en base64). */

@@ -22,7 +22,8 @@ function loadTilesAround(lat, lon) {
   tides.tileKeysAround(lat, lon).forEach((key) => require(path.join(TILE_FOLDER, `${key}.js`)));
 }
 
-const ALLOWED_LICENSES = new Set(['cc-by-4.0', 'cc-by-nc-4.0', 'public domain']);
+/** Solo licencias que permiten el uso comercial: las CC BY-NC 4.0 se excluyen al generar las teselas. */
+const ALLOWED_LICENSES = new Set(['cc-by-4.0', 'public domain']);
 
 test('wrapLonIndex lleva los índices de longitud al rango [-18, 18) (antimeridiano)', () => {
   assert.equal(tides.wrapLonIndex(0), 0);
@@ -101,7 +102,7 @@ test('getHarmonicWindow devuelve la estación, su licencia y la referencia de al
   assert.ok(result.heights.length > 0 && result.extremes.length > 0);
   assert.equal(result.station.distanceKm < 5, true);
   assert.match(result.station.referenceLabel, /LAT/);
-  assert.ok(['CC BY 4.0', 'CC BY-NC 4.0', 'Dominio público'].includes(result.station.licenseLabel));
+  assert.ok(['CC BY 4.0', 'Dominio público'].includes(result.station.licenseLabel));
   assert.equal(result.coversStartMs, startMs);
 });
 
@@ -126,7 +127,7 @@ test('getHistoricalTides devuelve la marea de una captura pasada sin necesidad d
   assert.equal(snapshot.station.name, tideWindow.station.name);
 });
 
-test('todas las teselas generadas son válidas: id únicos, licencias conocidas y ubicación coherente', () => {
+test('todas las teselas generadas son válidas: id únicos, licencias de uso comercial y ubicación coherente', () => {
   const files = fs.readdirSync(TILE_FOLDER).filter((file) => /^-?\d+_-?\d+\.js$/.test(file));
   assert.equal(files.length, App.tideManifest.length, 'el manifiesto no coincide con los archivos');
   const ids = new Set();
@@ -148,5 +149,5 @@ test('todas las teselas generadas son válidas: id únicos, licencias conocidas 
       }
     }
   }
-  assert.ok(stations > 6000, `estaciones: ${stations}`);
+  assert.ok(stations > 5800, `estaciones: ${stations}`);
 });
