@@ -44,6 +44,8 @@
     tidesError: null,
     pendingPhoto: null,
     searchResults: [],
+    /** Momento del día con el que se pintó la lista de especies (para repintarla cuando cambie). */
+    speciesLightPeriod: null,
   };
 
   /** Identificadores de petición: descartan respuestas antiguas si el usuario cambia de lugar. */
@@ -285,6 +287,12 @@
     }
   }
 
+  /** Nombre de la zona o región del lugar en el idioma activo. */
+  function placeZoneName(place) {
+    if (!place || !place.zoneId) return null;
+    return speciesCatalog.zoneLabel(place.zoneId) || place.zoneName;
+  }
+
   function renderPlace() {
     const place = state.place;
     if (!place) {
@@ -306,18 +314,25 @@
       <p class="muted">${utils.escapeHtml(subtitle)}</p>
       <p class="coords">${utils.escapeHtml(place.lat.toFixed(4))}, ${utils.escapeHtml(place.lon.toFixed(4))} · ${sourceLabel}</p>`;
 
+    const zoneName = placeZoneName(place);
     dom.zoneBadge.hidden = false;
-    dom.zoneBadge.textContent = place.zoneName
-      ? PescaApp.i18n.t('Zona: {zona}', { zona: place.zoneName })
+    dom.zoneBadge.textContent = zoneName
+      ? PescaApp.i18n.t('Zona: {zona}', { zona: zoneName })
       : PescaApp.i18n.t('Sin zona');
     dom.refreshButton.disabled = false;
 
     if (place.countryCode !== 'es') {
       dom.zoneAlert.hidden = false;
       dom.zoneAlert.className = 'alert alert-info';
-      dom.zoneAlert.textContent = place.countryCode
-        ? PescaApp.i18n.t('No hay referencia de especies, tallas ni vedas para este país. La marea, el tiempo y la luna sí se calculan.')
-        : PescaApp.i18n.t('No sabemos en qué país está este lugar, así que no hay referencia de especies, tallas ni vedas.');
+      if (place.zoneId) {
+        dom.zoneAlert.textContent = PescaApp.i18n.t(
+          'Especies comunes de la zona, sin tallas ni vedas de referencia para este país. Consulta la normativa local.'
+        );
+      } else {
+        dom.zoneAlert.textContent = place.countryCode
+          ? PescaApp.i18n.t('No hay referencia de especies, tallas ni vedas para este país. La marea, el tiempo y la luna sí se calculan.')
+          : PescaApp.i18n.t('No sabemos en qué país está este lugar, así que no hay referencia de especies, tallas ni vedas.');
+      }
     } else if (!place.inCoverage) {
       dom.zoneAlert.hidden = false;
       dom.zoneAlert.className = 'alert alert-warning';
@@ -597,7 +612,10 @@
     const phase = moon.getMoonPhase(now);
     const forecast = state.forecast;
     const tideSummary = state.tides ? tides.summarize(state.tides, now.getTime()) : null;
+    const place = state.place;
     return activity.computeFishingRating({
+      ...sunInputs(now, place),
+      cloudCoverPct: forecast ? forecast.cloudCoverPercent : null,
       pressureHpa: forecast ? forecast.pressureHpa : null,
       pressureTrend3hHpa: forecast ? forecast.pressureTrend3hHpa : null,
       moonDistanceToSyzygy: phase.distanceToSyzygy,
@@ -608,6 +626,15 @@
       hoursFromTideExtreme: tideSummary ? tideSummary.hoursFromExtreme : null,
       tideCoefficient: currentCoefficient(now),
     });
+  }
+
+  /** Elevación del sol y si sube, para el factor «Hora del día». Sin lugar, sin dato. */
+  function sunInputs(date, place) {
+    if (!place) return { sunElevationDeg: null, sunRising: false };
+    return {
+      sunElevationDeg: PescaApp.sun.solarElevation(date, place.lat, place.lon),
+      sunRising: PescaApp.sun.isRising(date, place.lat, place.lon),
+    };
   }
 
   /** Cinco estrellas: las valoradas en color. La cifra la da la etiqueta de la tarjeta. */
@@ -704,6 +731,8 @@
       return memo.rows;
     }
     const rows = hourlyForecast.buildForecastRows({
+      lat: state.place ? state.place.lat : null,
+      lon: state.place ? state.place.lon : null,
       forecast: state.forecast,
       ensemble: state.ensemble,
       waterSeries: state.waterSeries,
@@ -1104,8 +1133,14 @@
   // Especies
   // ---------------------------------------------------------------------------
 
+  /** Momento del día ahora en el lugar: 'night', 'dawn', 'day' o 'dusk'. Sin lugar, null. */
+  function currentLightPeriod(place) {
+    return place ? PescaApp.sun.lightPeriod(new Date(), place.lat, place.lon) : null;
+  }
+
   function renderSpeciesList() {
     const place = state.place;
+    state.speciesLightPeriod = currentLightPeriod(place);
     if (!place || !place.zoneId) {
       const message = place
         ? PescaApp.i18n.t('No hay catálogo de especies para este lugar. Las tallas y vedas solo se comprueban en España.')
@@ -1122,26 +1157,38 @@
 
     dom.speciesCount.textContent = PescaApp.i18n.t('{total} especies en {zona}', {
       total: list.length,
-      zona: place.zoneName,
+      zona: placeZoneName(place),
     });
     if (list.length === 0) {
       dom.speciesList.innerHTML = `<li class="muted">${PescaApp.i18n.t('Ninguna especie coincide con la búsqueda.')}</li>`;
       return;
     }
 
-    dom.speciesList.innerHTML = list.map((species) => speciesItemHtml(species, place.zoneId)).join('');
+    dom.speciesList.innerHTML = list
+      .map((species) => speciesItemHtml(species, place.zoneId, state.speciesLightPeriod))
+      .join('');
   }
 
-  function speciesItemHtml(species, zoneId) {
-    const minSizeCm = validation.getMinSizeCm(species, zoneId);
+  function speciesItemHtml(species, zoneId, lightPeriod) {
     const chips = [];
-    chips.push(
-      minSizeCm === null
-        ? `<span class="chip chip-muted">${PescaApp.i18n.t('Talla: sin dato confirmado')}</span>`
-        : `<span class="chip">${PescaApp.i18n.t('Talla mín. {talla} cm', { talla: minSizeCm })}</span>`
-    );
+    if (speciesCatalog.isRegulatedZone(zoneId)) {
+      const minSizeCm = validation.getMinSizeCm(species, zoneId);
+      chips.push(
+        minSizeCm === null
+          ? `<span class="chip chip-muted">${PescaApp.i18n.t('Talla: sin dato confirmado')}</span>`
+          : `<span class="chip">${PescaApp.i18n.t('Talla mín. {talla} cm', { talla: minSizeCm })}</span>`
+      );
+    }
     if (species.protected) chips.push(`<span class="chip chip-danger">${PescaApp.i18n.t('Protegida')}</span>`);
-    if (species.peakMonths && species.peakMonths.length) {
+    if (lightPeriod && Array.isArray(species.bestTimes) && species.bestTimes.includes(lightPeriod)) {
+      chips.push(`<span class="chip chip-ok">${PescaApp.i18n.t('Buen momento ahora')}</span>`);
+    }
+    if (species.bestTimes && species.bestTimes.length) {
+      chips.push(
+        `<span class="chip">${PescaApp.i18n.t('Mejor: {momentos}', { momentos: utils.escapeHtml(speciesCatalog.labels('bestTimes', species.bestTimes).join(', ')) })}</span>`
+      );
+    }
+    if (speciesCatalog.isRegulatedZone(zoneId) && species.peakMonths && species.peakMonths.length) {
       chips.push(
         `<span class="chip">${PescaApp.i18n.t('Pico: {meses}', { meses: utils.escapeHtml(speciesCatalog.formatMonths(species.peakMonths)) })}</span>`
       );
@@ -1149,70 +1196,134 @@
     return `
       <li>
         <button type="button" class="species-button" data-species-id="${utils.escapeHtml(species.id)}">
-          <span class="species-name">${utils.escapeHtml(species.commonName)}</span>
+          <span class="species-name">${utils.escapeHtml(speciesCatalog.displayName(species))}</span>
           <span class="species-sci">${utils.escapeHtml(species.scientificName)}</span>
           <span class="chips">${chips.join('')}</span>
         </button>
       </li>`;
   }
 
+  /** Peso en kg con los decimales justos: 0,25 kg, 0,5 kg, 1,5 kg, 10 kg. */
+  function kgText(value) {
+    const decimals = Number.isInteger(value) ? 0 : Number.isInteger(value * 10) ? 1 : 2;
+    return fmt(value, decimals, 'kg');
+  }
+
+  /** Tramo de peso de una fila de anzuelos: «Hasta 0,5 kg», «De 0,5 a 2 kg», «Más de 2 kg». */
+  function hookRangeText(row, isOnly) {
+    const t = PescaApp.i18n.t;
+    if (row.toKg === null) return isOnly ? t('Cualquier tamaño') : t('Más de {kg}', { kg: kgText(row.fromKg) });
+    if (!row.fromKg) return t('Hasta {kg}', { kg: kgText(row.toKg) });
+    return t('De {desde} a {hasta}', { desde: kgText(row.fromKg), hasta: kgText(row.toKg) });
+  }
+
+  /** Rango en mm con los decimales del idioma: «0,25–0,35 mm». */
+  function mmRange(range) {
+    return `${fmt(range[0], 2)}–${fmt(range[1], 2, 'mm')}`;
+  }
+
   function openSpeciesDialog(speciesId) {
     const species = speciesCatalog.getSpeciesById(speciesId);
     if (!species) return;
+    const t = PescaApp.i18n.t;
+    const esc = utils.escapeHtml;
+    const zoneId = state.place ? state.place.zoneId : null;
+    const listItems = (items) => items.map((item) => `<li>${esc(item)}</li>`).join('');
+    const dataRow = (label, valueHtml) => (valueHtml ? `<div class="data-row"><dt>${label}</dt><dd>${valueHtml}</dd></div>` : '');
+    const name = speciesCatalog.displayName(species);
+    const names = species.names || {};
+    const otherNames = [...new Set([names.es, names.en, ...(species.aliases || [])].filter((item) => item && item !== name))];
 
-    const sizeRows = species.zones
-      .map((zoneId) => {
-        const zone = speciesCatalog.getZoneById(zoneId);
-        const minSizeCm = validation.getMinSizeCm(species, zoneId);
-        return `<tr><td>${utils.escapeHtml(zone ? zone.name : zoneId)}</td><td>${
-          minSizeCm === null
-            ? PescaApp.i18n.t('Sin dato confirmado')
-            : PescaApp.i18n.t('{talla} cm', { talla: minSizeCm })
-        }</td></tr>`;
-      })
-      .join('');
-    const closedHtml =
-      species.closedSeasons && species.closedSeasons.length
-        ? species.closedSeasons
-            .map((season) => `<li>${utils.escapeHtml(season.reason || PescaApp.i18n.t('Veda'))}: ${utils.escapeHtml(speciesCatalog.formatMonths(season.months))}</li>`)
-            .join('')
-        : `<li class="muted">${PescaApp.i18n.t('No hay vedas registradas en esta base de datos. Consulta la normativa vigente.')}</li>`;
-    const listItems = (items) => items.map((item) => `<li>${utils.escapeHtml(item)}</li>`).join('');
+    const alertsHtml = [
+      species.protected ? renderAlert(species.protectionNote || t('Especie protegida: no debe retenerse.'), 'danger') : '',
+      species.alertNote ? renderAlert(species.alertNote, 'warning') : '',
+      ...speciesCatalog.labels('alerts', species.alerts).map((text) => renderAlert(text, 'warning')),
+    ].join('');
+
+    const hasNumber = (value) => Number.isFinite(value);
+    const weightText = [hasNumber(species.averageWeightKg) ? kgText(species.averageWeightKg) : null, hasNumber(species.maxWeightKg) ? kgText(species.maxWeightKg) : null]
+      .filter(Boolean)
+      .join(' · ');
+    const timeNote = speciesCatalog.localized(species.timeNote);
+    const bestTimes = speciesCatalog.labels('bestTimes', species.bestTimes).join(' · ');
+    const regulatedZones = species.zones.filter((id) => speciesCatalog.isRegulatedZone(id));
+
+    const rows = speciesCatalog.hookRows(species);
+    const hooksHtml = rows.length
+      ? `<h4>${t('Anzuelo según el tamaño de la pieza')}</h4>
+        <div class="table-wrap"><table><thead><tr><th>${t('Peso de la pieza')}</th><th>${t('Anzuelo')}</th></tr></thead><tbody>${rows
+          .map((row) => `<tr><td>${esc(hookRangeText(row, rows.length === 1))}</td><td>${esc(row.size)}</td></tr>`)
+          .join('')}</tbody></table></div>`
+      : '';
+    const hookStyles = speciesCatalog.labels('hookStyles', species.hookStyles);
+    const lineText = Array.isArray(species.lineMm)
+      ? Array.isArray(species.leaderMm)
+        ? t('Línea {linea} · bajo {bajo}', { linea: mmRange(species.lineMm), bajo: mmRange(species.leaderMm) })
+        : t('Línea {linea}', { linea: mmRange(species.lineMm) })
+      : '';
+    const tips = speciesCatalog.localized(species.tips);
+
+    const sizeHtml = regulatedZones.length
+      ? `<h3>${t('Tallas mínimas de referencia')}</h3>
+        <div class="table-wrap"><table><thead><tr><th>${t('Zona')}</th><th>${t('Talla')}</th></tr></thead><tbody>${regulatedZones
+          .map((id) => {
+            const minSizeCm = validation.getMinSizeCm(species, id);
+            return `<tr><td>${esc(speciesCatalog.zoneLabel(id))}</td><td>${
+              minSizeCm === null ? t('Sin dato confirmado') : t('{talla} cm', { talla: minSizeCm })
+            }</td></tr>`;
+          })
+          .join('')}</tbody></table></div>
+        <p class="fineprint">${esc(species.minSizeNote || '')}</p>
+        <h3>${t('Vedas y restricciones')}</h3>
+        <ul>${
+          species.closedSeasons && species.closedSeasons.length
+            ? species.closedSeasons
+                .map((season) => `<li>${esc(season.reason || t('Veda'))}: ${esc(speciesCatalog.formatMonths(season.months))}</li>`)
+                .join('')
+            : `<li class="muted">${t('No hay vedas registradas en esta base de datos. Consulta la normativa vigente.')}</li>`
+        }</ul>
+        <p>${esc(species.restrictions || '')}</p>`
+      : '';
+    const regionNote =
+      zoneId && !speciesCatalog.isRegulatedZone(zoneId)
+        ? `<p class="fineprint">${t('En esta zona no hay tallas de referencia en la app. Consulta la normativa local.')}</p>`
+        : '';
 
     dom.speciesDialogBody.innerHTML = `
-      <h2>${utils.escapeHtml(species.commonName)}</h2>
-      <p class="species-sci">${utils.escapeHtml(species.scientificName)} · ${utils.escapeHtml(species.family)}</p>
-      ${species.protected ? renderAlert(species.protectionNote || PescaApp.i18n.t('Especie protegida: no debe retenerse.'), 'danger') : ''}
-      ${species.alertNote ? renderAlert(species.alertNote, 'warning') : ''}
+      <h2>${esc(name)}</h2>
+      <p class="species-sci">${esc(species.scientificName)}${species.family ? ` · ${esc(species.family)}` : ''}</p>
+      ${otherNames.length ? `<p class="fineprint">${t('Otros nombres: {nombres}', { nombres: esc(otherNames.join(', ')) })}</p>` : ''}
+      ${alertsHtml}
       <dl class="data-list">
-        <div class="data-row"><dt>${PescaApp.i18n.t('Hábitat')}</dt><dd>${utils.escapeHtml(species.habitat)}</dd></div>
-        <div class="data-row"><dt>${PescaApp.i18n.t('Profundidad')}</dt><dd>${fmt(species.depthRangeM[0])}–${fmt(species.depthRangeM[1], 0, 'm')}</dd></div>
-        <div class="data-row"><dt>${PescaApp.i18n.t('Peso medio y máximo')}</dt><dd>${fmt(species.averageWeightKg, 1, 'kg')} · ${fmt(species.maxWeightKg, 0, 'kg')} ${PescaApp.i18n.t('(orientativo)')}</dd></div>
-        <div class="data-row"><dt>${PescaApp.i18n.t('Longitud máxima')}</dt><dd>${fmt(species.maxLengthCm, 0, 'cm')} ${PescaApp.i18n.t('(orientativo)')}</dd></div>
-        <div class="data-row"><dt>${PescaApp.i18n.t('Periodo de mayor actividad')}</dt><dd>${utils.escapeHtml(speciesCatalog.formatMonths(species.peakMonths))}. ${utils.escapeHtml(species.peakNote || '')}</dd></div>
+        ${dataRow(t('Hábitat'), esc(speciesCatalog.labels('habitats', species.habitats).join(' · ') || species.habitat || ''))}
+        ${Array.isArray(species.depthRangeM) ? dataRow(t('Profundidad'), `${fmt(species.depthRangeM[0])}–${fmt(species.depthRangeM[1], 0, 'm')}`) : ''}
+        ${weightText ? dataRow(t('Peso medio y máximo'), `${weightText} ${t('(orientativo)')}`) : ''}
+        ${hasNumber(species.maxLengthCm) ? dataRow(t('Longitud máxima'), `${fmt(species.maxLengthCm, 0, 'cm')} ${t('(orientativo)')}`) : ''}
+        ${dataRow(t('Mejor momento del día'), esc([bestTimes, timeNote].filter(Boolean).join('. ')))}
+        ${regulatedZones.length && species.peakMonths && species.peakMonths.length ? dataRow(t('Periodo de mayor actividad'), `${esc(speciesCatalog.formatMonths(species.peakMonths))}. ${esc(species.peakNote || '')}`) : ''}
       </dl>
-      <h3>${PescaApp.i18n.t('Tallas mínimas de referencia')}</h3>
-      <div class="table-wrap"><table><thead><tr><th>${PescaApp.i18n.t('Zona')}</th><th>${PescaApp.i18n.t('Talla')}</th></tr></thead><tbody>${sizeRows}</tbody></table></div>
-      <p class="fineprint">${utils.escapeHtml(species.minSizeNote || '')}</p>
-      <h3>${PescaApp.i18n.t('Cebos recomendados')}</h3>
-      <ul>${listItems(species.baits || [])}</ul>
-      <h3>${PescaApp.i18n.t('Técnicas')}</h3>
-      <ul>${listItems(species.techniques || [])}</ul>
-      <h3>${PescaApp.i18n.t('Vedas y restricciones')}</h3>
-      <ul>${closedHtml}</ul>
-      <p>${utils.escapeHtml(species.restrictions || '')}</p>
-      <h3>${PescaApp.i18n.t('Fuentes')}</h3>
-      <ul class="sources">${listItems(species.sources || [])}</ul>`;
+      <h3>${t('Cómo pescarla')}</h3>
+      <h4>${t('Técnicas')}</h4>
+      <ul>${listItems(speciesCatalog.labels('techniques', species.techniques))}</ul>
+      <h4>${t('Cebos y señuelos')}</h4>
+      <ul>${listItems(speciesCatalog.labels('baits', species.baits))}</ul>
+      ${hooksHtml}
+      ${hookStyles.length ? `<p>${t('Estilo de anzuelo: {estilo}', { estilo: esc(hookStyles.join('; ')) })}</p>` : ''}
+      ${lineText ? `<p>${esc(lineText)}</p>` : ''}
+      ${tips ? `<h4>${t('Consejos')}</h4><p>${esc(tips)}</p>` : ''}
+      ${sizeHtml}
+      ${regionNote}
+      ${species.sources && species.sources.length ? `<h3>${t('Fuentes')}</h3><ul class="sources">${listItems(species.sources)}</ul>` : ''}`;
     openDialog(dom.speciesDialog);
   }
 
+  /** Sugerencias del formulario de capturas, en el idioma activo. */
   function populateDatalists() {
     const catalog = speciesCatalog.getSpeciesList();
-    dom.datalistSpecies.innerHTML = catalog
-      .map((species) => `<option value="${utils.escapeHtml(species.commonName)}"></option>`)
-      .join('');
-    const baits = [...new Set(catalog.flatMap((species) => species.baits || []))];
-    const techniques = [...new Set(catalog.flatMap((species) => species.techniques || []))];
+    const names = [...new Set(catalog.map((species) => speciesCatalog.displayName(species)))];
+    dom.datalistSpecies.innerHTML = names.map((name) => `<option value="${utils.escapeHtml(name)}"></option>`).join('');
+    const baits = [...new Set(catalog.flatMap((species) => speciesCatalog.labels('baits', species.baits)))];
+    const techniques = [...new Set(catalog.flatMap((species) => speciesCatalog.labels('techniques', species.techniques)))];
     dom.datalistBaits.innerHTML = baits.map((bait) => `<option value="${utils.escapeHtml(bait)}"></option>`).join('');
     dom.datalistTechniques.innerHTML = techniques
       .map((technique) => `<option value="${utils.escapeHtml(technique)}"></option>`)
@@ -1228,8 +1339,9 @@
       dom.catchPlace.textContent = PescaApp.i18n.t('Define primero una ubicación en la sección de arriba.');
       return;
     }
-    dom.catchPlace.textContent = state.place.zoneName
-      ? PescaApp.i18n.t('Lugar de la captura: {lugar} ({zona})', { lugar: state.place.name, zona: state.place.zoneName })
+    const zoneName = placeZoneName(state.place);
+    dom.catchPlace.textContent = zoneName
+      ? PescaApp.i18n.t('Lugar de la captura: {lugar} ({zona})', { lugar: state.place.name, zona: zoneName })
       : PescaApp.i18n.t('Lugar de la captura: {lugar}', { lugar: state.place.name });
   }
 
@@ -1292,7 +1404,7 @@
     const zoneId = state.place ? state.place.zoneId : null;
 
     // Fuera de España no hay tallas ni vedas de referencia: no se aplican reglas de otro lugar.
-    const assessment = zoneId
+    const assessment = zoneId && speciesCatalog.isRegulatedZone(zoneId)
       ? validation.evaluateCatch({ species, zoneId, lengthCm, dateTime })
       : validation.evaluateWithoutReference();
     const alertsHtml = assessment.alerts
@@ -1367,6 +1479,8 @@
 
       const tideSummary = tideWindow ? tides.summarize(tideWindow, dateTime.getTime()) : null;
       const activityResult = activity.computeActivityIndex({
+        ...sunInputs(dateTime, place),
+        cloudCoverPct: weatherData ? weatherData.cloudCoverPercent : null,
         pressureHpa: weatherData ? weatherData.pressureHpa : null,
         pressureTrend3hHpa: weatherData ? weatherData.pressureTrend3hHpa : null,
         moonDistanceToSyzygy: moonPhase.distanceToSyzygy,
@@ -1525,6 +1639,12 @@
     return parts.join(' · ');
   }
 
+  /** Nombre de la especie de una captura en el idioma activo; si no está en el catálogo, el guardado. */
+  function recordSpeciesName(record) {
+    const species = record.speciesId ? speciesCatalog.getSpeciesById(record.speciesId) : null;
+    return species ? speciesCatalog.displayName(species) : record.speciesName;
+  }
+
   function catchCardHtml(record) {
     const measures = [];
     if (record.weightKg !== null) measures.push(fmt(record.weightKg, 2, 'kg'));
@@ -1552,13 +1672,13 @@
       <article class="catch-card">
         <header class="catch-head">
           <div>
-            <p class="catch-title">${utils.escapeHtml(record.speciesName || PescaApp.i18n.t('Sin especificar'))}</p>
+            <p class="catch-title">${utils.escapeHtml(recordSpeciesName(record) || PescaApp.i18n.t('Sin especificar'))}</p>
             <p class="muted">${utils.escapeHtml(formatDateTimeText(record.dateTime))} · ${utils.escapeHtml(record.place ? record.place.name : PescaApp.i18n.t('Lugar sin nombre'))}</p>
           </div>
           ${badge}
         </header>
         <p>${utils.escapeHtml(measures.join(' · ') || PescaApp.i18n.t('Sin medidas'))}</p>
-        ${record.photo ? `<img class="catch-photo" src="${utils.escapeHtml(record.photo)}" alt="${PescaApp.i18n.t('Foto de la captura de {especie}', { especie: utils.escapeHtml(record.speciesName || PescaApp.i18n.t('Sin especificar')) })}">` : ''}
+        ${record.photo ? `<img class="catch-photo" src="${utils.escapeHtml(record.photo)}" alt="${PescaApp.i18n.t('Foto de la captura de {especie}', { especie: utils.escapeHtml(recordSpeciesName(record) || PescaApp.i18n.t('Sin especificar')) })}">` : ''}
         ${issues.length ? `<ul class="alert-list">${issues.map((alert) => `<li class="alert-item alert-${alert.level}">${utils.escapeHtml(alert.message)}</li>`).join('')}</ul>` : ''}
         <details>
           <summary>${PescaApp.i18n.t('Condiciones del momento')}</summary>
@@ -1734,6 +1854,7 @@
     renderTidesCard();
     renderForecastCard();
     renderSpeciesList();
+    populateDatalists();
     renderCatchPlace();
     renderCatchFormDefaults();
     renderCatchList();
@@ -1794,6 +1915,7 @@
       renderActivityCard();
       if (state.place) renderTidesCard();
       if (state.place) renderForecastCard();
+      if (currentLightPeriod(state.place) !== state.speciesLightPeriod) renderSpeciesList();
       renderCatchFormDefaults();
     }, CLOCK_INTERVAL_MS);
   }

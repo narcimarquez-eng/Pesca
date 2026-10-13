@@ -1,6 +1,6 @@
 /**
  * Índice de actividad de pesca (0–100), estimado a partir de la presión, la
- * fase lunar, el viento y la marea. La valoración de 1 a 5 estrellas (computeFishingRating)
+ * fase lunar, el viento, la marea y la hora del día (luz del sol). La valoración de 1 a 5 estrellas (computeFishingRating)
  * parte de ese índice y le aplica límites de seguridad por tormenta, lluvia y viento fuerte.
  *
  * Es una heurística orientativa, no una predicción. Los pesos y las curvas
@@ -15,7 +15,7 @@
   const { t, mark } = PescaApp.i18n;
 
   /** Peso relativo de cada factor. */
-  const WEIGHTS = Object.freeze({ pressure: 0.3, moon: 0.2, wind: 0.25, tide: 0.25 });
+  const WEIGHTS = Object.freeze({ pressure: 0.25, moon: 0.15, wind: 0.2, tide: 0.2, light: 0.2 });
 
   /** Niveles textuales según la puntuación final. */
   const LEVELS = Object.freeze([
@@ -85,6 +85,23 @@
     return timing * strength;
   }
 
+  /**
+   * Puntuación 0–1 de la luz: máxima en el crepúsculo (sol entre −6° y +6°), buena de
+   * noche y más baja con el sol alto. Muchos depredadores cazan más con poca luz, cuando
+   * sus presas los ven peor. De día, las nubes suavizan la luz y suben algo la puntuación.
+   */
+  function scoreLight(sunElevationDeg, cloudCoverPct) {
+    const utils = PescaApp.utils;
+    if (!Number.isFinite(sunElevationDeg)) return null;
+    const base = utils.interpolateTable(
+      [[-18, 0.6], [-12, 0.75], [-6, 1], [6, 1], [12, 0.75], [25, 0.5], [90, 0.45]],
+      sunElevationDeg
+    );
+    if (!Number.isFinite(cloudCoverPct)) return base;
+    const daylight = clamp01((sunElevationDeg - 12) / 13);
+    return base + 0.15 * daylight * clamp01(cloudCoverPct / 100);
+  }
+
   function explainPressure(pressureHpa, trendHpa) {
     const utils = PescaApp.utils;
     const parts = [t('Presión de {value}', { value: utils.formatNumber(pressureHpa, 0, 'hPa') })];
@@ -148,6 +165,22 @@
     return `${timing}${strength}.`;
   }
 
+  function explainLight(sunElevationDeg, sunRising, cloudCoverPct) {
+    const { NIGHT_BELOW_DEG, DAY_ABOVE_DEG } = PescaApp.sun;
+    if (sunElevationDeg < NIGHT_BELOW_DEG) {
+      return t('Noche: muchas especies nocturnas se acercan a la orilla; suele rendir el cebo natural a fondo.');
+    }
+    if (sunElevationDeg <= DAY_ABOVE_DEG) {
+      return sunRising
+        ? t('Amanecer: con poca luz, muchos depredadores cazan más y cerca de la superficie; buen momento para señuelos.')
+        : t('Atardecer: con poca luz, muchos depredadores cazan más y cerca de la superficie; buen momento para señuelos.');
+    }
+    if (Number.isFinite(cloudCoverPct) && cloudCoverPct >= 70) {
+      return t('De día, pero nublado: la luz suave alarga la actividad.');
+    }
+    return t('Pleno día con sol: muchas especies bajan al fondo o buscan sombra; pesca más hondo o junto a las rocas.');
+  }
+
   /** Tono de un factor para los resúmenes: favorable, neutral o desfavorable. */
   function toneOf(score) {
     if (score >= 0.75) return 'favorable';
@@ -186,6 +219,9 @@
    * @param {number|null} input.windSpeedKmh Viento medio (km/h).
    * @param {number|null} input.hoursFromTideExtreme Horas desde el extremo de marea más cercano (null sin datos).
    * @param {number|null} input.tideCoefficient Coeficiente de marea (20–120), si se conoce.
+   * @param {number|null} input.sunElevationDeg Elevación del sol en grados (sun.solarElevation).
+   * @param {boolean} [input.sunRising] true si el sol sube (mañana), para distinguir amanecer y atardecer.
+   * @param {number|null} [input.cloudCoverPct] Nubosidad (%), que suaviza la luz de día.
    * @returns {{score: number|null, level: string, factors: object[], missing: string[], summary: string}}
    */
   function computeActivityIndex(input = {}) {
@@ -249,6 +285,12 @@
         weight: WEIGHTS.tide,
         score: scoreTide(input.hoursFromTideExtreme, input.tideCoefficient),
       },
+      {
+        key: 'light',
+        label: mark('Hora del día'),
+        weight: WEIGHTS.light,
+        score: scoreLight(input.sunElevationDeg, input.cloudCoverPct),
+      },
     ];
   }
 
@@ -262,6 +304,11 @@
     }
     if (key === 'wind') {
       return Number.isFinite(input.windSpeedKmh) ? explainWind(input.windSpeedKmh) : '';
+    }
+    if (key === 'light') {
+      return Number.isFinite(input.sunElevationDeg)
+        ? explainLight(input.sunElevationDeg, input.sunRising, input.cloudCoverPct)
+        : '';
     }
     return Number.isFinite(input.hoursFromTideExtreme)
       ? explainTide(input.hoursFromTideExtreme, input.tideCoefficient)
@@ -414,6 +461,7 @@
     scoreMoon,
     scoreWind,
     scoreTide,
+    scoreLight,
     computeActivityIndex,
     ratingFor,
     buildRatingSummary,

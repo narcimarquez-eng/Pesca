@@ -61,6 +61,12 @@
     maxZoneDistanceKm: 60,
 
     /**
+     * Fuera de España: distancia máxima (km) al punto de referencia más cercano de una región
+     * del mundo para mostrar sus especies comunes.
+     */
+    maxRegionDistanceKm: 400,
+
+    /**
      * Mareas. Orden de elección (ver js/tides.js):
      * - stationMaxDistanceKm: la estación de marea más cercana, hasta esta distancia.
      * - modelMaxDistanceKm: si no hay ninguna, el punto del modelo global EOT20 más cercano,

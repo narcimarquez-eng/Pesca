@@ -6,8 +6,13 @@ const App = require('./helpers');
 
 const { activity } = App;
 
-/** Condiciones ideales: presión estable de 1015 hPa, luna nueva o llena, viento flojo y marea en plena corriente. */
+/**
+ * Condiciones ideales: presión estable de 1015 hPa, luna nueva o llena, viento flojo, marea
+ * en plena corriente y sol en el horizonte (amanecer).
+ */
 const CALM = {
+  sunElevationDeg: 0,
+  sunRising: true,
   pressureHpa: 1015,
   pressureTrend3hHpa: 0,
   moonDistanceToSyzygy: 0,
@@ -111,11 +116,30 @@ test('con pocos datos se valora con lo disponible y el resumen lo indica', () =>
   assert.equal(rating.score, 100, 'solo el viento: su puntuación se reparte entre todo el peso');
   assert.equal(rating.stars, 5);
   assert.ok(rating.missing.includes('Presión atmosférica'));
-  assert.match(rating.summary, /Sin datos de: presión atmosférica, fase lunar, marea\./);
+  assert.match(rating.summary, /Sin datos de: presión atmosférica, fase lunar, marea, hora del día\./);
 });
 
 test('la tormenta no se compensa con buenos factores ni con la marea', () => {
   const stormy = activity.computeFishingRating({ ...CALM, weatherCode: 95, tideCoefficient: 110 });
   assert.ok(stormy.score <= 20);
   assert.ok(stormy.stars <= 1);
+});
+
+test('hora del día: el crepúsculo puntúa más que la noche, y la noche más que el sol alto', () => {
+  const { scoreLight } = activity;
+  assert.equal(scoreLight(0), 1, 'sol en el horizonte');
+  assert.equal(scoreLight(-30), 0.6, 'noche cerrada');
+  assert.ok(scoreLight(60) < scoreLight(-30), 'pleno día con sol');
+  assert.ok(scoreLight(60, 100) > scoreLight(60, 0), 'las nubes suavizan la luz de día');
+  assert.equal(scoreLight(-30, 100), scoreLight(-30), 'de noche las nubes no cuentan');
+  assert.equal(scoreLight(null), null);
+});
+
+test('la explicación de la hora del día distingue amanecer, atardecer, noche y día', () => {
+  const explain = (input) => activity.computeActivityIndex(input).factors.find((factor) => factor.key === 'light').explanation;
+  assert.match(explain({ sunElevationDeg: 2, sunRising: true }), /^Amanecer/);
+  assert.match(explain({ sunElevationDeg: 2, sunRising: false }), /^Atardecer/);
+  assert.match(explain({ sunElevationDeg: -25 }), /^Noche/);
+  assert.match(explain({ sunElevationDeg: 50, cloudCoverPct: 90 }), /nublado/);
+  assert.match(explain({ sunElevationDeg: 50, cloudCoverPct: 10 }), /^Pleno día/);
 });

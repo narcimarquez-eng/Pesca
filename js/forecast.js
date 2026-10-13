@@ -131,6 +131,7 @@
     moonDistance,
     hoursFromTideExtreme,
     tideCoefficient,
+    light = {},
   }) {
     const { weather, activity } = PescaApp;
     const utils = PescaApp.utils;
@@ -158,6 +159,7 @@
       }
 
       const score = activity.fishingScore({
+        ...light,
         pressureHpa,
         pressureTrend3hHpa: weather.computePressureTrend(member.pressureHpa, index, pressureHpa, TREND_HOURS),
         moonDistanceToSyzygy: moonDistance,
@@ -184,6 +186,8 @@
 
   /** Una fila de la previsión para la posición `index` de la serie horaria. */
   function buildRow({
+    lat,
+    lon,
     forecast,
     index,
     ensemble,
@@ -203,8 +207,16 @@
     const coefficient = coefficientAt(ts, daysByKey, timeZone);
     const moonDistance = moon.getMoonPhase(new Date(ts)).distanceToSyzygy;
     const hoursFromTideExtreme = tide ? tide.hoursFromExtreme : null;
+    const hasPlace = Number.isFinite(lat) && Number.isFinite(lon);
+    // La luz es la misma en todos los escenarios: la nubosidad es la de la previsión central.
+    const light = {
+      sunElevationDeg: hasPlace ? PescaApp.sun.solarElevation(ts, lat, lon) : null,
+      sunRising: hasPlace ? PescaApp.sun.isRising(ts, lat, lon) : false,
+      cloudCoverPct: hourly.cloudCoverPercent ? hourly.cloudCoverPercent[index] : null,
+    };
 
     const rating = activity.computeFishingRating({
+      ...light,
       pressureHpa: hourly.pressureHpa[index],
       pressureTrend3hHpa: hourly.pressureTrend3hHpa[index],
       moonDistanceToSyzygy: moonDistance,
@@ -233,6 +245,7 @@
             moonDistance,
             hoursFromTideExtreme,
             tideCoefficient: coefficient.coefficient,
+            light,
           });
 
     return {
@@ -263,6 +276,8 @@
    * `hours` horas. Si se pasan escenarios, cada fila lleva su margen.
    *
    * @param {object} input
+   * @param {number|null} [input.lat] Latitud del lugar, para la hora del día (luz del sol).
+   * @param {number|null} [input.lon] Longitud del lugar.
    * @param {object} input.forecast Pronóstico normalizado (weather.getForecast), con `hourly`.
    * @param {object|null} input.ensemble Escenarios normalizados (weather.getEnsemble), opcional.
    * @param {object|null} input.waterSeries Temperatura del agua (weather.getWaterSeries), opcional.
@@ -270,6 +285,8 @@
    * @param {number} input.nowMs Instante actual en milisegundos.
    */
   function buildForecastRows({
+    lat = null,
+    lon = null,
     forecast,
     ensemble = null,
     waterSeries = null,
@@ -296,6 +313,8 @@
       if (index >= hourly.times.length) break;
       rows.push(
         buildRow({
+          lat,
+          lon,
           forecast,
           index,
           ensemble,

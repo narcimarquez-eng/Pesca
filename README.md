@@ -22,10 +22,10 @@ Al cargar, la app pide tu ubicación. También puedes escribir un lugar (ciudad,
 
 ## Funcionalidades
 
-- **Ubicación:** GPS, búsqueda por nombre o coordenadas. Asigna una zona del catálogo de especies y avisa si estás lejos de la costa catalogada.
+- **Ubicación:** GPS, búsqueda por nombre o coordenadas. En España asigna una de las cuatro zonas del catálogo (con tallas de referencia); en el resto del mundo, la región costera más cercana con sus especies más comunes. Avisa si estás lejos de la costa catalogada.
 - **Clima actual:** temperatura del aire y del agua, viento (km/h y nudos, con dirección), presión con su tendencia de 3 h, humedad, nubosidad, precipitación, amanecer y atardecer.
 - **Luna:** fase, iluminación y próxima luna llena o nueva (cálculo propio, sin API).
-- **Condiciones de pesca (1–5 estrellas):** valoración a partir de presión, luna, viento y marea, con límites de seguridad por tormenta, lluvia y viento fuerte. Muestra el índice de 0 a 100 y explica cada factor y cada ajuste.
+- **Condiciones de pesca (1–5 estrellas):** valoración a partir de presión, luna, viento, marea y **hora del día** (amanecer, atardecer, noche o pleno día, con la posición del sol calculada en la app), con límites de seguridad por tormenta, lluvia y viento fuerte. Muestra el índice de 0 a 100 y explica cada factor y cada ajuste.
 - **Previsión por horas:** tabla de 72 horas, una fila por hora, agrupada en días desplegables. Cada hora muestra el valor central de Open-Meteo y, debajo, el margen entre escenarios (51 miembros del modelo de conjunto ECMWF IFS), además de la probabilidad de lluvia, la altura de marea con su sentido, el coeficiente y la valoración. Destaca los tres mejores momentos.
 - **Mareas:** altura actual, próximas pleamar y bajamar, gráfica de 24 horas, **coeficiente de marea de hoy** y una **tabla de los próximos 7 días** con el coeficiente, las pleamares y las bajamares de cada día. Por defecto usa la **predicción armónica de la estación de marea más cercana** y, donde no hay estación, la del **modelo global de mareas EOT20**, sin registro ni clave. Como opción, puedes usar WorldTides con una clave gratuita. Se muestra la estación o el punto del modelo usado, su distancia y su licencia.
 - **Especies de la zona:** 17 especies con ficha completa: tallas mínimas por zona, pesos, hábitat, periodos de mayor actividad, cebos, técnicas, restricciones y fuentes.
@@ -53,6 +53,20 @@ Al cargar, la app pide tu ubicación. También puedes escribir un lugar (ciudad,
 
 Si no hay ninguna estación a menos de 60 km ni punto del modelo a menos de 20 km (por ejemplo, en el interior o río arriba), la app no muestra predicción y lo indica.
 
+## Amanecer y atardecer: qué dicen los estudios
+
+En muchas especies depredadoras la caza alcanza su máximo con poca luz, al amanecer y al atardecer, cuando sus presas los ven peor:
+
+- En arrecifes de Hawái, los carnívoros crepusculares comen sobre todo peces pequeños, cuyas defensas funcionan peor en la penumbra ([Hobson, 1974](https://swfsc-publications.fisheries.noaa.gov/publications/CR/1974/7411.PDF)).
+- El bacalao del Atlántico se mueve más en el crepúsculo, y su estómago está más lleno cerca de la salida y la puesta del sol ([VLIZ](https://www.vliz.be/imisdocs/publications/ocrd/244629.pdf)). Los meros estudiados en Japón están más activos al amanecer y al atardecer que a mediodía ([Universidad de Kioto](https://repository.kulib.kyoto-u.ac.jp/dspace/handle/2433/160388)).
+- En la pesca con caña, un estudio con lucios encontró más capturas al anochecer, junto con otros factores ([Kuparinen et al., 2010](https://www.agrar.hu-berlin.de/de/institut/departments/dntw/jp_bfm/publ_html/kuparinen-et-al-2010)).
+
+Pero depende de la especie: en un estudio con depredadores de arrecife, una especie atacaba más al anochecer, otra a mediodía y otra menos en el crepúsculo ([PLOS ONE, 2014](https://pmc.ncbi.nlm.nih.gov/articles/PMC4213059)). Las lubinas solitarias marcadas con emisores se mueven sobre todo de noche ([Bégout Anras et al.](https://www.vliz.be/imisdocs/publications/ocrd/121102.pdf)). Por eso la valoración general da peso al crepúsculo y cada ficha de especie indica su mejor momento del día.
+
+**Cómo cambia la técnica:** al amanecer y al atardecer rinden los señuelos cerca de la superficie (spinning, poppers) para depredadores como la lubina, la anjova o el palometón. De noche suele rendir el cebo natural a fondo (surfcasting a dorada, sargo, corvina o congrio) y la potera con luz para el calamar. Con sol alto, conviene pescar más hondo o junto a rocas y sombras.
+
+**Tablas solunares:** la app no las usa. Un estudio de 2023 con capturas de truchas no encontró relación entre las capturas y los periodos solunares, la fase ni la iluminación de la luna ([SN Applied Sciences, 2023](https://link.springer.com/article/10.1007/s42452-023-05379-8)). La luna solo cuenta por su efecto en las mareas.
+
 ## Previsión y valoración: cómo se calculan
 
 La previsión central usa la serie horaria de Open-Meteo: cuatro días (hoy y los tres siguientes), más el día anterior para la tendencia de presión. La tabla muestra una fila por hora desde la hora actual, durante 72 horas, en la hora local del lugar.
@@ -63,10 +77,11 @@ Para cada hora se calcula el índice de actividad (0–100) con estos pesos:
 
 | Factor | Peso | Qué mira |
 |---|---|---|
-| Presión | 30 % | Nivel (ideal entre 1010 y 1020 hPa) y tendencia de las últimas 3 horas |
-| Luna | 20 % | Mareas vivas (luna nueva o llena) frente a mareas muertas |
-| Viento | 25 % | Cuanto más flojo, mejor |
-| Marea | 25 % | Altura respecto al extremo más cercano y coeficiente |
+| Presión | 25 % | Nivel (ideal entre 1010 y 1020 hPa) y tendencia de las últimas 3 horas |
+| Luna | 15 % | Mareas vivas (luna nueva o llena) frente a mareas muertas |
+| Viento | 20 % | Cuanto más flojo, mejor |
+| Marea | 20 % | Altura respecto al extremo más cercano y coeficiente |
+| Hora del día | 20 % | Altura del sol: máxima en el crepúsculo (sol entre −6° y +6°), buena de noche, más baja con el sol alto; de día, las nubes la suben algo |
 
 Si falta un dato, su peso se reparte entre los factores disponibles. Después se aplican límites de seguridad. No se compensan con los buenos factores:
 
@@ -106,11 +121,15 @@ legal y los textos de seguridad.
 
 **Qué no se traduce ni se aplica fuera de España**
 
-- Las tallas mínimas, las vedas, las protecciones y el catálogo de especies y zonas existen solo para
-  España. En otros países la app dice que no hay referencia y no aplica reglas de otro lugar.
+- Las tallas mínimas, las vedas y las protecciones existen solo para España. En otros países la app
+  muestra las especies más comunes de la región, con su técnica, cebo y anzuelo, pero sin tallas: dice
+  que no hay referencia y no aplica reglas de otro lugar.
 - Un lugar cuyo país no se conoce tampoco tiene referencia de tallas, aunque esté cerca de la costa
   catalogada.
-- Los nombres de especies y de zonas del catálogo siguen en castellano.
+- Los nombres de las especies y de las zonas se muestran en castellano si la app está en castellano y
+  en inglés en el resto de idiomas. Las técnicas, los cebos, los hábitats, los momentos del día y los
+  avisos de cada ficha se traducen; los consejos están en castellano y en inglés. Las notas de
+  temporada, tallas, vedas y fuentes de las especies de España siguen en castellano.
 - Las unidades son métricas (km/h, hPa, °C, cm, kg).
 - Los datos de mareas, el tiempo y la luna son los mismos en todo el mundo.
 
@@ -164,29 +183,41 @@ No necesitas ninguna clave para las mareas. Si prefieres WorldTides:
 
 ## Añadir una especie
 
-Edita `js/data/species-data.js` y añade un objeto al array `species`:
+Las especies de España están en `js/data/species-data.js` (array `species`) y las del resto del mundo,
+en `js/data/species-world.js`. Una especie de España se añade así:
 
 ```js
 {
   id: 'especie-ejemplo',            // identificador único, sin espacios
-  commonName: 'Especie de ejemplo',
+  commonName: 'Especie de ejemplo', // nombre en castellano (el mismo que names.es)
+  names: { es: 'Especie de ejemplo', en: 'Example fish' },
   scientificName: 'Genus species',
-  aliases: ['Nombre alternativo'],  // se usan en la búsqueda
+  aliases: ['Nombre regional'],     // se usan en la búsqueda
   family: 'Familia',
-  zones: ['mediterraneo'],          // zonas donde aparece (ids de `zones`)
-  habitat: 'Descripción del hábitat.',
+  zones: ['mediterraneo'],          // zonas de España donde aparece (ids de `zones`)
   depthRangeM: [0, 50],
   averageWeightKg: 0.5,             // orientativo
   maxWeightKg: 3,                   // orientativo
   maxLengthCm: 60,                  // orientativo
-  peakMonths: [5, 6, 7],           // meses de mayor actividad (1 = enero)
-  peakNote: 'Primavera y verano.',
-  baits: ['Gamba', 'Señuelos de superficie'],
-  techniques: ['Spinning desde orilla'],
-  minSizeCm: { mediterraneo: 25 }, // talla mínima por zona; {} si no hay dato confirmado
+  peakMonths: [5, 6, 7],            // meses de mayor actividad (1 = enero)
+  habitats: ['rock', 'sand'],       // códigos del vocabulario (ver abajo)
+  bestTimes: ['dawn', 'dusk'],      // mejor momento del día: dawn, dusk, night, day
+  timeNote: { es: 'Con agua turbia, también de día.', en: 'In murky water, also by day.' }, // opcional
+  techniques: ['spinning', 'float'],
+  baits: ['shrimp', 'soft-plastic'],
+  hooks: [                          // anzuelo según el peso de la pieza, en tramos crecientes
+    { maxKg: 0.5, size: '6–2' },
+    { maxKg: null, size: '1–1/0' }, // el último tramo no tiene límite
+  ],
+  hookStyles: ['short-shank'],
+  lineMm: [0.25, 0.35],             // línea madre (mm, monofilamento)
+  leaderMm: [0.22, 0.3],            // bajo (mm)
+  tips: { es: 'Consejo práctico.', en: 'Practical tip.' },
+  alerts: [],                       // venomous, sharp-teeth, regulated…
+  minSizeCm: { mediterraneo: 25 },  // talla mínima por zona; {} si no hay dato confirmado
   minSizeNote: 'Cómo se obtuvo la talla y qué confirmar.',
   protected: false,
-  closedSeasons: [                 // vedas, opcional
+  closedSeasons: [                  // vedas, opcional
     { zones: ['mediterraneo'], months: [4, 5], reason: 'periodo de freza', source: 'Norma X (BOE)' },
   ],
   restrictions: 'Cupos y tallas según la normativa autonómica.',
@@ -194,14 +225,33 @@ Edita `js/data/species-data.js` y añade un objeto al array `species`:
 }
 ```
 
+Las técnicas, los cebos, los hábitats, los momentos del día, los estilos de anzuelo y los avisos son
+códigos: la lista está en `VOCAB` (`js/species.js`) y la app los traduce al mostrarlos. Para añadir un
+código nuevo, añádelo a `VOCAB` y su traducción a cada idioma (`node tools/i18n-check.mjs` dice cuáles
+faltan). El tamaño de anzuelo usa la numeración internacional, de menor a mayor («12–8», «6–2»,
+«1–1/0», «2/0–4/0»), con una raya corta (–) entre los dos números. Los cefalópodos no llevan `hooks`.
+
 Las tallas que no tengan una fuente clara deben quedar vacías (`{}` o `null`): la app mostrará "sin dato confirmado" en lugar de un valor inventado. Si una especie tiene una relación longitud-peso propia, añade `lengthWeight: { a, b, source }`.
+
+Una especie del resto del mundo usa los mismos campos de la ficha, sin `zones`, `peakMonths` ni los de
+tallas y vedas. Para que aparezca en una región, añade su `id` a la lista `species` de esa región en
+`js/data/species-world.js`. Si la especie ya existe en España, usa su `id` de España y no repitas la
+ficha.
 
 ## Añadir una zona o una costa
 
-1. En `zones`, añade la zona con `id`, `name`, `regions` y `regulationNote`.
+**Zonas de España** (con tallas de referencia), en `js/data/species-data.js`:
+
+1. En `zones`, añade la zona con `id`, `name`, `names` (`es`, `en`), `regions` y `regulationNote`.
 2. En `zoneAnchors`, añade uno o varios puntos costeros con `zoneId`, `name`, `lat` y `lon`. Cada ubicación se asigna a la zona del punto más cercano. Si está a más de `maxZoneDistanceKm` (60 km por defecto), la app avisa de que el catálogo puede no ser representativo.
 3. Añade el id de la zona a los `zones` de las especies que se pescan allí.
 4. Ejecuta `npm test`. Las pruebas comprueban que los ids existen y que las tallas solo se asignan a zonas de cada especie.
+
+**Regiones del resto del mundo** (sin tallas), en `js/data/species-world.js`: añade a `regions` un
+objeto con `id`, `names` (`es`, `en`), `anchors` (puertos o pueblos costeros repartidos por toda la
+costa, con `name`, `lat` y `lon`) y `species` (ids de las especies más comunes, de más a menos
+habitual). Fuera de España, cada ubicación se asigna a la región del punto más cercano, si está a menos
+de `maxRegionDistanceKm` (400 km por defecto).
 
 ## Mantenimiento de los datos de marea
 
@@ -222,28 +272,30 @@ Para `build:tide-model`, descarga EOT20 de [SEANOE](https://www.seanoe.org/data/
 ## Estructura
 
 ```
-index.html              Estructura de la página
-css/styles.css          Estilos (paleta marina, modo oscuro, diseño responsive)
-js/config.js            URLs de las APIs, clave opcional, cachés, radio de estaciones y teselas
-js/i18n.js              Idioma de la interfaz: t(), catálogos bajo demanda, país e idioma que corresponde
-js/i18n/                Catálogos de traducción, uno por idioma (inglés siempre cargado)
-js/utils.js             Utilidades: números, fechas, red, caché y almacenamiento
-js/moon.js              Fase lunar (cálculo propio)
-js/data/species-data.js Catálogo de especies, zonas y puntos de costa (fuentes citadas)
-js/data/tides/          Teselas de constantes armónicas de estaciones y manifiesto (generados)
-js/data/tides-model/    Teselas de puntos del modelo global EOT20 y manifiesto (generados)
-js/vendor/              Predictor armónico empaquetado (MIT)
-js/species.js           Búsqueda de especies y asignación de zona
-js/location.js          GPS, búsqueda de lugares y Nominatim
-js/weather.js           Open-Meteo: previsión central, escenarios, temperatura del agua e histórico
-js/tides.js             Mareas: predicción armónica por estación o punto del modelo, WorldTides opcional y coeficiente
-js/activity.js          Índice de actividad (0–100), valoración de 1 a 5 estrellas y ajustes de seguridad
-js/forecast.js          Previsión por horas: filas cada hora, márgenes de escenarios y mejores momentos
-js/validation.js        Talla mínima, vedas, protección y peso estimado
-js/catches.js           Registro de capturas, exportación y reducción de fotos
-js/app.js               Controlador de la interfaz
-tools/                  Scripts de mantenimiento: build-tide-data.mjs, build-tide-model.mjs (con tide-model-lib.mjs), build-vendor.mjs e i18n-check.mjs
-tests/                  Pruebas unitarias (node:test)
+index.html               Estructura de la página
+css/styles.css           Estilos (paleta marina, modo oscuro, diseño responsive)
+js/config.js             URLs de las APIs, clave opcional, cachés, radio de estaciones y teselas
+js/i18n.js               Idioma de la interfaz: t(), catálogos bajo demanda, país e idioma que corresponde
+js/i18n/                 Catálogos de traducción, uno por idioma (inglés siempre cargado)
+js/utils.js              Utilidades: números, fechas, red, caché y almacenamiento
+js/moon.js               Fase lunar (cálculo propio)
+js/sun.js                Altura del sol y momento del día: noche, amanecer, día o atardecer (cálculo propio)
+js/data/species-data.js  Especies y zonas de España, con tallas de referencia y fuentes citadas
+js/data/species-world.js Regiones del resto del mundo: puntos de costa y especies más comunes
+js/data/tides/           Teselas de constantes armónicas de estaciones y manifiesto (generados)
+js/data/tides-model/     Teselas de puntos del modelo global EOT20 y manifiesto (generados)
+js/vendor/               Predictor armónico empaquetado (MIT)
+js/species.js            Catálogo de especies, vocabulario de las fichas, búsqueda y asignación de zona o región
+js/location.js           GPS, búsqueda de lugares y Nominatim
+js/weather.js            Open-Meteo: previsión central, escenarios, temperatura del agua e histórico
+js/tides.js              Mareas: predicción armónica por estación o punto del modelo, WorldTides opcional y coeficiente
+js/activity.js           Índice de actividad (0–100), valoración de 1 a 5 estrellas y ajustes de seguridad
+js/forecast.js           Previsión por horas: filas cada hora, márgenes de escenarios y mejores momentos
+js/validation.js         Talla mínima, vedas, protección y peso estimado
+js/catches.js            Registro de capturas, exportación y reducción de fotos
+js/app.js                Controlador de la interfaz
+tools/                   Scripts de mantenimiento: build-tide-data.mjs, build-tide-model.mjs (con tide-model-lib.mjs), build-vendor.mjs e i18n-check.mjs
+tests/                   Pruebas unitarias (node:test)
 ```
 
 Los archivos se cargan con `<script>` clásicos, en orden, sin módulos ES. Así funcionan también abriendo `index.html` directamente. Las teselas de marea se cargan bajo demanda, solo las de la zona donde estás.
@@ -259,15 +311,15 @@ Ejecuta 136 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (inc
 ## Limitaciones conocidas
 
 - **Mareas:** la predicción armónica es astronómica. No incluye viento, presión ni oleaje, y puede diferir en puertos, estuarios y calas. Cerca de la estación (menos de 20 km) suele ser más fiable que lejos. Donde no hay estación, el modelo EOT20 suele desviarse unos 10 cm y 25 minutos en costa abierta, y bastante más en rías, estuarios y bahías; sus alturas van sobre el nivel medio del mar, no sobre LAT. No se ha comparado todavía con las tablas oficiales de un puerto concreto: compara antes de fiarte.
-- **Tallas y vedas:** son referencias orientativas. La talla de pesca recreativa depende de la comunidad autónoma. Varias especies no tienen talla confirmada y ninguna tiene vedas registradas todavía.
+- **Tallas y vedas:** son referencias orientativas y solo existen para España. La talla de pesca recreativa depende de la comunidad autónoma. Solo seis especies tienen talla de referencia: el resto muestra «sin dato confirmado». Ninguna tiene vedas registradas todavía.
 - **Coeficiente de marea:** con la predicción armónica es una estimación de la amplitud del día frente a la media del año de la estación. Puede diferir del coeficiente oficial de las tablas. Si usas WorldTides, el coeficiente cae a una estimación por fase lunar.
 - **Luna:** cálculo de luna media (error de unas horas). Para horas exactas de salida y puesta de la Luna, usa un cálculo astronómico completo.
 - **Escenarios:** el margen indica cuánto puede variar la previsión según el modelo de conjunto; no es una probabilidad calibrada. Si Open-Meteo cambia el formato de las variables de cada miembro, la tabla sigue mostrando solo la previsión central y lo indica.
 - **Valoración de pesca:** es una heurística y no garantiza capturas. Sus pesos y límites no están calibrados con datos de capturas. La previsión pierde precisión con los días: las horas más lejanas son orientativas.
 - **Pesos estimados:** el error habitual es de ±30 %.
-- **Zonas de especies:** el catálogo cubre sobre todo la costa española y tiene pocas especies en Canarias. El agua dulce y el interior no están incluidos.
+- **Fichas de especies:** la técnica, el cebo, el anzuelo por peso, la línea, el mejor momento del día y los consejos son orientativos. Resumen la práctica habitual de la pesca recreativa, se han redactado con ayuda de IA y no se han contrastado uno a uno con FishBase ni con WoRMS: revisa los nombres científicos y regionales antes de publicar. Fuera de España, cada región muestra solo sus especies más comunes, sin tallas ni vedas. El agua dulce y el interior no están incluidos.
 - **Fotos:** se guardan en localStorage reducidas a 800 px. El navegador limita este espacio (unos 5 MB). Si no cabe, la captura se guarda sin foto.
-- **Idiomas:** las traducciones distintas del castellano son automáticas y no están revisadas por hablantes nativos. El catálogo de especies, las tallas y las vedas siguen en castellano y solo existen para España.
+- **Idiomas:** las traducciones distintas del castellano son automáticas y no están revisadas por hablantes nativos. Los nombres de las especies y los consejos de las fichas solo están en castellano y en inglés; las notas de tallas y vedas, solo en castellano.
 - **Datos locales:** las capturas solo existen en este navegador. Exporta el JSON para tener copias de seguridad.
 
 ## Fuentes y créditos
@@ -278,5 +330,6 @@ Ejecuta 136 pruebas unitarias (Node 18 o superior): fase lunar, coeficiente (inc
 - Modelo global de mareas: [EOT20](https://doi.org/10.17882/79489) de DGFI-TUM (Hart-Davis, M. G. et al., 2021, [Earth System Science Data 13, 3869–3884](https://doi.org/10.5194/essd-13-3869-2021); CC BY 4.0).
 - Predictor armónico: [`@neaps/tide-predictor`](https://github.com/openwatersio/neaps) (MIT).
 - Mareas opcionales: [WorldTides](https://www.worldtides.info) (requiere clave propia).
-- Nombres científicos, tallas máximas y hábitat: [FishBase](https://www.fishbase.se) y [FAO FishFinder](https://www.fao.org/fishery/en/species).
+- Nombres científicos, tallas máximas y hábitat: [FishBase](https://www.fishbase.se) y [FAO FishFinder](https://www.fao.org/fishery/en/species), como referencia.
+- Actividad de los peces según la luz: los estudios citados en «Amanecer y atardecer: qué dicen los estudios».
 - Normativa de referencia (consultada el 12/10/2026, según fuentes públicas): Reglamento (CE) n.º 850/98, anexo XII; Real Decreto 560/1995; Real Decreto 1615/2005; Real Decreto 347/2011; Reglamento (UE) 2019/1241 y Reglamento (UE) 2024/491. Las referencias concretas aparecen en el campo `sources` de cada especie.

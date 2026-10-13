@@ -146,9 +146,12 @@
    * del catálogo y cobertura.
    */
   function buildPlace({ lat, lon, name = null, locality = null, region = null, countryCode = null, source = 'manual' }) {
-    // El catálogo de especies, las tallas y las vedas son de España. Solo se asigna zona en España:
-    // en otro país, o si no se sabe el país, no hay referencia aunque la costa esté cerca.
-    const zone = countryCode === 'es' ? PescaApp.species.classifyZone(lat, lon) : null;
+    // En España, zona del catálogo con tallas de referencia. En otro país (o si no se sabe el
+    // país), región del mundo con sus especies comunes, sin tallas ni vedas, solo si la costa
+    // de la región está cerca: una región lejana no sería representativa.
+    const inSpain = countryCode === 'es';
+    const found = inSpain ? PescaApp.species.classifyZone(lat, lon) : PescaApp.species.classifyRegion(lat, lon);
+    const zone = found && found.zoneId && (inSpain || found.inCoverage) ? found : null;
     const fallbackName = PescaApp.i18n.t('Punto {lat}, {lon}', { lat: lat.toFixed(3), lon: lon.toFixed(3) });
     return {
       name: name || fallbackName,
@@ -160,6 +163,7 @@
       savedAt: new Date().toISOString(),
       countryCode,
       zoneId: zone ? zone.zoneId : null,
+      zoneKind: zone ? (inSpain ? 'spain' : 'region') : null,
       zoneName: zone ? zone.zoneName : null,
       anchorName: zone ? zone.anchorName : null,
       zoneDistanceKm: zone ? zone.distanceKm : null,

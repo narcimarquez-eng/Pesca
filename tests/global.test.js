@@ -15,24 +15,28 @@ test('el código de país se lee de la respuesta de Nominatim en minúsculas', (
   assert.equal(locationService.normalizeNominatimPlace({ address: {} }).countryCode, null);
 });
 
-test('un lugar sin país no recibe zona del catálogo, aunque esté en la costa catalogada', () => {
+test('un lugar sin país no recibe zona con tallas, aunque esté en la costa catalogada de España', () => {
   const place = locationService.buildPlace({ lat: 43.3623, lon: -8.4115 });
   assert.equal(place.countryCode, null);
-  assert.equal(place.zoneId, null);
-  assert.equal(place.inCoverage, false);
+  assert.notEqual(place.zoneKind, 'spain');
+  assert.equal(species.isRegulatedZone(place.zoneId), false, 'como mucho, una región del mundo sin tallas');
 });
 
 test('en Portugal no se aplican las tallas españolas aunque el punto caiga en el área del catálogo', () => {
   const lisbon = { lat: 38.7223, lon: -9.1393 };
   assert.ok(species.classifyZone(lisbon.lat, lisbon.lon).zoneId, 'el área del catálogo sí lo cubre');
   const place = locationService.buildPlace({ ...lisbon, countryCode: 'pt' });
-  assert.equal(place.zoneId, null, 'pero el lugar no tiene referencia');
+  assert.equal(place.zoneId, 'iberia-atlantica', 'recibe su región del mundo');
+  assert.equal(place.zoneKind, 'region');
+  assert.equal(species.isRegulatedZone(place.zoneId), false, 'sin tallas de referencia');
   assert.equal(place.countryCode, 'pt');
 });
 
 test('en España el lugar sigue recibiendo su zona del catálogo', () => {
   const place = locationService.buildPlace({ lat: 28.1235, lon: -15.4363, countryCode: 'es' });
   assert.equal(place.zoneId, 'canarias');
+  assert.equal(place.zoneKind, 'spain');
+  assert.equal(species.isRegulatedZone(place.zoneId), true);
 });
 
 test('sin referencia, la captura no recibe alertas de talla, veda ni protección', () => {
