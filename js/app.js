@@ -1153,7 +1153,7 @@
     const filter = dom.speciesFilter.value.trim();
     const list = filter
       ? speciesCatalog.searchSpecies(filter, { zoneId: place.zoneId, limit: 100 })
-      : speciesCatalog.getSpeciesForZone(place.zoneId);
+      : speciesCatalog.bestNowFirst(speciesCatalog.getSpeciesForZone(place.zoneId), state.speciesLightPeriod);
 
     dom.speciesCount.textContent = PescaApp.i18n.t('{total} especies en {zona}', {
       total: list.length,

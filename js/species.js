@@ -294,6 +294,17 @@
     return zoneResult(nearestAnchor(lat, lon, catalog().regionAnchors), PescaApp.config.maxRegionDistanceKm);
   }
 
+  /**
+   * Pone primero las especies cuyo mejor momento del día es el actual; el resto conserva su orden.
+   * Sin momento del día (sin lugar), devuelve la lista tal cual.
+   */
+  function bestNowFirst(list, lightPeriod) {
+    if (!lightPeriod) return list.slice();
+    const best = list.filter((species) => Array.isArray(species.bestTimes) && species.bestTimes.includes(lightPeriod));
+    const bestIds = new Set(best.map((species) => species.id));
+    return [...best, ...list.filter((species) => !bestIds.has(species.id))];
+  }
+
   /** Lista de meses en abreviatura, en orden del año. Ejemplo: [10, 11, 1] → "ene, oct, nov". */
   function formatMonths(months) {
     if (!Array.isArray(months) || months.length === 0) return t('Sin periodo definido');
@@ -330,6 +341,7 @@
     getSpeciesById,
     displayName,
     getSpeciesForZone,
+    bestNowFirst,
     searchSpecies,
     findSpeciesByName,
     classifyZone,
