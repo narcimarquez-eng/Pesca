@@ -94,7 +94,7 @@ test('estimateWeightKg: lubina de 40 cm pesa en torno a 0,7 kg; longitudes no v�
   assert.equal(validation.estimateWeightKg('abc', findSpecies('lubina')), null);
 });
 
-test('lubina atlántica de 30 cm debe devolverse (talla de referencia 36 cm)', () => {
+test('lubina del Cantábrico y noroeste de 30 cm debe devolverse (talla de referencia 42 cm, art. 4 bis)', () => {
   const result = validation.evaluateCatch({
     species: findSpecies('lubina'),
     zoneId: 'atlantico_norte',
@@ -102,7 +102,7 @@ test('lubina atlántica de 30 cm debe devolverse (talla de referencia 36 cm)', (
     dateTime: new Date(2026, 9, 12),
   });
   assert.equal(result.mustRelease, true);
-  assert.equal(result.minSizeCm, 36);
+  assert.equal(result.minSizeCm, 42);
   assert.ok(result.alerts.some((alert) => alert.code === 'below-min-size' && alert.level === 'danger'));
 });
 
@@ -128,9 +128,21 @@ test('sin talla confirmada la alerta es informativa, no roja', () => {
   assert.ok(result.alerts.some((alert) => alert.code === 'no-reference-size' && alert.level === 'info'));
 });
 
-test('el mero (especie protegida) genera una alerta roja de no retención', () => {
+test('el mero no figura como protegido: con 60 cm cumple la talla de 45 cm del Mediterráneo', () => {
   const result = validation.evaluateCatch({
     species: findSpecies('mero'),
+    zoneId: 'mediterraneo',
+    lengthCm: 60,
+    dateTime: new Date(2026, 9, 12),
+  });
+  assert.equal(result.mustRelease, false);
+  assert.equal(result.minSizeCm, 45);
+  assert.ok(result.alerts.some((alert) => alert.code === 'legal-size'));
+});
+
+test('una especie protegida genera una alerta roja de no retención', () => {
+  const result = validation.evaluateCatch({
+    species: { ...findSpecies('mero'), protected: true, protectionNote: 'Especie protegida (prueba).' },
     zoneId: 'mediterraneo',
     lengthCm: 60,
     dateTime: new Date(2026, 9, 12),
@@ -193,7 +205,8 @@ test('createRecord estima el peso cuando solo hay longitud y evalúa la talla', 
   });
   assert.equal(record.weightKg, null);
   assert.ok(record.estimatedWeightKg > 0.55 && record.estimatedWeightKg < 0.95);
-  assert.equal(record.assessment.mustRelease, false);
+  // 40 cm es menos que los 42 cm de referencia del Cantábrico y noroeste: hay que devolverla.
+  assert.equal(record.assessment.mustRelease, true);
   assert.equal(record.speciesId, 'lubina');
 });
 
