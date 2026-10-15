@@ -34,23 +34,31 @@ test('condiciones ideales dan 100 puntos y 5 estrellas sin ajustes', () => {
   assert.match(rating.summary, /^Sin ajustes de seguridad: no hay tormenta, lluvia ni viento fuerte\.$/);
 });
 
-test('ratingFor reparte las estrellas en los umbrales 80, 65, 50 y 35', () => {
+test('ratingFor reparte las estrellas en los umbrales 90, 82, 75 y 65', () => {
   const expected = [
     [100, 5, 'Excelente'],
-    [80, 5, 'Excelente'],
-    [79, 4, 'Buena'],
-    [65, 4, 'Buena'],
-    [64, 3, 'Aceptable'],
-    [50, 3, 'Aceptable'],
-    [49, 2, 'Floja'],
-    [35, 2, 'Floja'],
-    [34, 1, 'Mala'],
+    [90, 5, 'Excelente'],
+    [89, 4, 'Buena'],
+    [82, 4, 'Buena'],
+    [81, 3, 'Aceptable'],
+    [75, 3, 'Aceptable'],
+    [74, 2, 'Floja'],
+    [65, 2, 'Floja'],
+    [64, 1, 'Mala'],
     [0, 1, 'Mala'],
   ];
   expected.forEach(([score, stars, label]) => {
     assert.deepEqual(activity.ratingFor(score), { stars, label }, `puntuación ${score}`);
   });
   assert.deepEqual(activity.ratingFor(null), { stars: null, label: 'Sin datos' });
+});
+
+test('el nivel del índice y las estrellas usan las mismas bandas en todas las puntuaciones', () => {
+  const levelOfStars = { 5: 'Muy buena', 4: 'Buena', 3: 'Moderada', 2: 'Baja', 1: 'Muy baja' };
+  for (let score = 0; score <= 100; score += 1) {
+    const { stars } = activity.ratingFor(score);
+    assert.equal(activity.describeLevel(score), levelOfStars[stars], `puntuación ${score}`);
+  }
 });
 
 test('una tormenta limita la valoración a 20 puntos aunque el resto sea ideal', () => {
@@ -72,7 +80,7 @@ test('la lluvia resta puntos: 10 con lluvia moderada y 30 con lluvia intensa', (
 
   const heavy = activity.computeFishingRating({ ...CALM, precipitationMm: 4 });
   assert.equal(heavy.score, 70);
-  assert.equal(heavy.stars, 4);
+  assert.equal(heavy.stars, 2, '70 puntos quedan por debajo de 75 y son 2 estrellas');
   assert.equal(heavy.adjustments[0].key, 'heavy-rain');
   assert.equal(heavy.adjustments[0].effect, '−30');
 

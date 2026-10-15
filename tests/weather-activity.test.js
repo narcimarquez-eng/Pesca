@@ -161,9 +161,11 @@ test('índice de actividad sin ningún dato devuelve null y nivel "Sin datos"', 
 });
 
 test('describeLevel respeta los límites de cada nivel', () => {
-  assert.equal(activity.describeLevel(29), 'Muy baja');
-  assert.equal(activity.describeLevel(30), 'Baja');
-  assert.equal(activity.describeLevel(75), 'Muy buena');
+  assert.equal(activity.describeLevel(64), 'Muy baja');
+  assert.equal(activity.describeLevel(65), 'Baja');
+  assert.equal(activity.describeLevel(75), 'Moderada');
+  assert.equal(activity.describeLevel(82), 'Buena');
+  assert.equal(activity.describeLevel(90), 'Muy buena');
 });
 
 test('cada factor incluye una explicación en castellano y la bajada rápida se describe', () => {

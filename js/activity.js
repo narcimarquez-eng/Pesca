@@ -17,12 +17,20 @@
   /** Peso relativo de cada factor. */
   const WEIGHTS = Object.freeze({ pressure: 0.25, moon: 0.15, wind: 0.2, tide: 0.2, light: 0.2 });
 
-  /** Niveles textuales según la puntuación final. */
+  /**
+   * Cortes de la puntuación final (0–100). Los usan a la vez el nivel del índice y las
+   * estrellas, para que una misma banda diga lo mismo en los dos. Se han calibrado con una
+   * simulación de condiciones típicas de la costa, no con datos de capturas: con estos
+   * cortes y datos de marea, 5 estrellas aparecen en torno al 4 % de las horas.
+   */
+  const CUTS = Object.freeze({ excellent: 90, good: 82, fair: 75, poor: 65 });
+
+  /** Niveles textuales según la puntuación final (misma banda que las estrellas). */
   const LEVELS = Object.freeze([
-    { below: 30, label: mark('Muy baja') },
-    { below: 45, label: mark('Baja') },
-    { below: 60, label: mark('Moderada') },
-    { below: 75, label: mark('Buena') },
+    { below: CUTS.poor, label: mark('Muy baja') },
+    { below: CUTS.fair, label: mark('Baja') },
+    { below: CUTS.good, label: mark('Moderada') },
+    { below: CUTS.excellent, label: mark('Buena') },
     { below: Infinity, label: mark('Muy buena') },
   ]);
 
@@ -327,10 +335,10 @@
 
   /** Estrellas (1–5) y etiqueta según la puntuación final ajustada (0–100). */
   const STAR_THRESHOLDS = Object.freeze([
-    { min: 80, stars: 5, label: mark('Excelente') },
-    { min: 65, stars: 4, label: mark('Buena') },
-    { min: 50, stars: 3, label: mark('Aceptable') },
-    { min: 35, stars: 2, label: mark('Floja') },
+    { min: CUTS.excellent, stars: 5, label: mark('Excelente') },
+    { min: CUTS.good, stars: 4, label: mark('Buena') },
+    { min: CUTS.fair, stars: 3, label: mark('Aceptable') },
+    { min: CUTS.poor, stars: 2, label: mark('Floja') },
     { min: -Infinity, stars: 1, label: mark('Mala') },
   ]);
 

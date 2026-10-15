@@ -92,7 +92,7 @@ Si falta un dato, su peso se reparte entre los factores disponibles. Después se
 | Lluvia (1 mm o más en la última hora) | −10 puntos |
 | Viento de 40 km/h o más, o rachas de 50 km/h o más | Máximo 25 puntos |
 
-Las estrellas salen de la puntuación final: 5 desde 80 puntos, 4 desde 65, 3 desde 50, 2 desde 35 y 1 por debajo. Los mejores momentos son las horas con más puntuación de al menos 3 estrellas, separadas al menos 6 horas.
+Las estrellas salen de la puntuación final: 5 desde 90 puntos, 4 desde 82, 3 desde 75, 2 desde 65 y 1 por debajo. El nivel del índice usa las mismas bandas. Los cortes se calibraron con una simulación de condiciones típicas de la costa, no con datos de capturas: con datos de marea, 5 estrellas aparecen en torno al 4 % de las horas. Los mejores momentos son las horas con más puntuación de al menos 3 estrellas, separadas al menos 6 horas.
 
 **Límites de la valoración.** Es una heurística. Los pesos y los umbrales son criterio propio y no están calibrados con datos de capturas, así que no garantiza ninguna pesca. Los límites de tormenta, lluvia y viento fuerte son de seguridad, pero PescaApp no sustituye a los avisos oficiales (por ejemplo, AEMET en España). Consúltalos antes de salir.
 
@@ -306,7 +306,7 @@ Los archivos se cargan con `<script>` clásicos, en orden, sin módulos ES. Así
 npm test
 ```
 
-Ejecuta 152 pruebas unitarias (Node 18 o superior): fase lunar, posición del sol y momento del día, coeficiente (incluida su correlación con la fase lunar), mareas (predicción armónica, puntos del modelo EOT20 y WorldTides), zonas horarias de las estaciones y de los puntos del modelo, elección entre estación y modelo (Vigo, Gijón, sur de Tenerife y Sevilla), predicción de A Coruña, integridad de todas las teselas de estaciones y del modelo, parseo de respuestas, índice de actividad, valoración de pesca, previsión por horas, escenarios y percentiles, idiomas, catálogos de traducción (mismas claves y marcadores que el inglés) y comprobador de textos, validación de tallas y vedas, catálogo de especies (vocabulario, nombres, anzuelos por peso), zonas de España y regiones del mundo, orden de la lista según el momento del día, cifras del README frente al catálogo, y exportación CSV/JSON.
+Ejecuta 153 pruebas unitarias (Node 18 o superior): fase lunar, posición del sol y momento del día, coeficiente (incluida su correlación con la fase lunar), mareas (predicción armónica, puntos del modelo EOT20 y WorldTides), zonas horarias de las estaciones y de los puntos del modelo, elección entre estación y modelo (Vigo, Gijón, sur de Tenerife y Sevilla), predicción de A Coruña, integridad de todas las teselas de estaciones y del modelo, parseo de respuestas, índice de actividad, valoración de pesca, previsión por horas, escenarios y percentiles, idiomas, catálogos de traducción (mismas claves y marcadores que el inglés) y comprobador de textos, validación de tallas y vedas, catálogo de especies (vocabulario, nombres, anzuelos por peso), zonas de España y regiones del mundo, orden de la lista según el momento del día, cifras del README frente al catálogo, y exportación CSV/JSON.
 
 ## Limitaciones conocidas
 
